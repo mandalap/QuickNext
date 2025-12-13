@@ -1,0 +1,39 @@
+╔════════════════════════════════════════════════════════════════╗
+║                                                                ║
+║        ⚠️  PENTING: JANGAN LUPA SETUP CRON JOB!  ⚠️           ║
+║                                                                ║
+╚════════════════════════════════════════════════════════════════╝
+
+Setelah upload ke hosting, WAJIB setup cron job agar:
+✅ Pengingat subscription otomatis berjalan setiap hari jam 10:00 pagi
+✅ Scheduled tasks berfungsi dengan baik
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📋 CARA SETUP:
+
+1. Login ke cPanel/Server hosting Anda
+2. Buka menu "Cron Jobs"
+3. Tambahkan cron job berikut:
+
+   * * * * * cd /path/to/project/app/backend && /usr/bin/php artisan schedule:run >> /dev/null 2>&1
+
+   (Ganti /path/to/project dengan path project Anda di hosting)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📖 DETAIL LENGKAP:
+
+Lihat file: CRONJOB_SETUP_REMINDER.md
+Atau: DEPLOYMENT_CHECKLIST.md
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🧪 TEST COMMAND:
+
+php artisan subscription:send-reminders
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⚠️  JANGAN LUPA SETUP CRON JOB SETELAH UPLOAD KE HOSTING! ⚠️
+

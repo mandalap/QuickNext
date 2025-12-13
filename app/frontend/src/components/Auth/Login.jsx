@@ -1,0 +1,312 @@
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { toast } from 'react-hot-toast';
+import { Link, useNavigate } from 'react-router-dom';
+import * as z from 'zod';
+import { useAuth } from '../../contexts/AuthContext';
+import { Alert, AlertDescription } from '../ui/alert';
+import { Button } from '../ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '../ui/card';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+
+const loginSchema = z.object({
+  email: z.string().email('Email tidak valid'),
+  password: z.string().min(1, 'Password wajib diisi'),
+});
+
+const Login = () => {
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
+  const {
+    login,
+    checkSubscription,
+    businesses,
+    businessLoading,
+    loadBusinesses,
+  } = useAuth();
+  const navigate = useNavigate();
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    resolver: zodResolver(loginSchema),
+  });
+
+  const onSubmit = async data => {
+    console.log('🔐 Login attempt:', { email: data.email });
+    console.log('🔐 Login attempt - email input:', data.email);
+
+    // Clear any existing cache before login
+    console.log('🧹 Clearing localStorage cache...');
+    localStorage.removeItem('token');
+    localStorage.removeItem('currentBusinessId');
+    localStorage.removeItem('user');
+
+    setError('');
+
+    try {
+      const result = await login(data.email, data.password);
+      console.log('📩 Login result:', result);
+      console.log('📩 Login result - user data:', result.user);
+      console.log('📩 Login result - user name:', result.user?.name);
+      console.log('📩 Login result - user email:', result.user?.email);
+
+      if (result.success) {
+        console.log('✅ Login successful, redirecting...');
+
+        const userRole = result.user?.role;
+        const userName = result.user?.name || 'User';
+        let redirectPath = '/';
+
+        // Employee roles (kasir, kitchen, waiter, admin) - cek subscription owner business
+        if (['kasir', 'kitchen', 'waiter', 'admin'].includes(userRole)) {
+          // Cek apakah owner business masih punya subscription aktif
+          const ownerSubscriptionStatus = result.owner_subscription_status;
+
+          if (
+            !ownerSubscriptionStatus ||
+            !ownerSubscriptionStatus.has_active_subscription
+          ) {
+            // Owner business subscription sudah habis, employee tidak bisa login
+            const errorMsg =
+              'Subscription bisnis sudah habis. Silakan hubungi pemilik bisnis untuk memperbarui subscription.';
+            setError(errorMsg);
+            toast.error(errorMsg, {
+              duration: 6000,
+            });
+            return;
+          }
+
+          // Owner masih punya subscription aktif, employee bisa login
+          switch (userRole) {
+            case 'kasir':
+              redirectPath = '/cashier';
+              break;
+            case 'kitchen':
+              redirectPath = '/kitchen';
+              break;
+            case 'waiter':
+              redirectPath = '/tables';
+              break;
+            case 'admin':
+              redirectPath = '/';
+              break;
+          }
+
+          // Show success toast for employee
+          toast.success(`Selamat datang, ${userName}!`, {
+            duration: 3000,
+          });
+
+          console.log(`🎯 Redirecting employee ${userRole} to ${redirectPath}`);
+          navigate(redirectPath, { replace: true });
+          return;
+        }
+
+        // Untuk owner, super_admin - cek status subscription
+        if (['owner', 'super_admin'].includes(userRole)) {
+          // ✅ FIX: Check subscription status from login result
+          // hasActiveSubscription is set by AuthContext.login() and returned in result
+          const hasActiveSubscription = result.hasActiveSubscription;
+          console.log(
+            '🔍 Owner login - subscription status:',
+            hasActiveSubscription
+          );
+          console.log('🔍 Owner login - businesses state:', businesses);
+          console.log('🔍 Owner login - businessLoading:', businessLoading);
+
+          // ✅ FIX: Check if user has active subscription
+          if (hasActiveSubscription) {
+            // User has active subscription, check if has business
+            console.log(
+              '✅ Owner has active subscription, checking businesses...'
+            );
+            console.log('🔍 Businesses state:', businesses);
+            console.log('🔍 Business loading:', businessLoading);
+
+            // ✅ FIX: Always redirect to dashboard and let ProtectedRoute handle business check
+            // This ensures businesses have time to load before redirect decision
+            // ProtectedRoute will check business loading status and redirect if needed
+            redirectPath = '/';
+            console.log(
+              '✅ Owner has subscription, redirecting to dashboard (ProtectedRoute will handle business check)'
+            );
+
+            // ✅ OPTIMIZATION: Wait a bit for businesses to start loading
+            // But don't block redirect - let ProtectedRoute handle the final check
+            if (businessLoading) {
+              console.log(
+                '⏳ Owner businesses still loading, ProtectedRoute will wait...'
+              );
+            } else {
+              // Businesses finished loading, but let ProtectedRoute make final decision
+              const hasBusiness = businesses && businesses.length > 0;
+              if (hasBusiness) {
+                console.log(
+                  '✅ Owner has businesses, dashboard will show them'
+                );
+              } else {
+                console.log(
+                  '⚠️ No businesses in state, ProtectedRoute will check and redirect if needed'
+                );
+              }
+            }
+          } else {
+            // User doesn't have active subscription, redirect to subscription plans
+            redirectPath = '/subscription-plans';
+            console.log(
+              '⚠️ Owner has no active subscription, redirecting to subscription-plans'
+            );
+          }
+        } else {
+          // Default untuk role lain
+          redirectPath = '/';
+        }
+
+        // Show success toast for owner/super_admin
+        toast.success(`Selamat datang, ${userName}!`, {
+          duration: 3000,
+        });
+
+        console.log(`🎯 Redirecting ${userRole} to ${redirectPath}`);
+        navigate(redirectPath, { replace: true });
+      } else {
+        console.error('❌ Login failed:', result.error);
+        const errorMsg = result.error || 'Login gagal. Silakan coba lagi.';
+        setError(errorMsg);
+        toast.error(`Login gagal: ${errorMsg}`, {
+          duration: 5000,
+        });
+      }
+    } catch (error) {
+      console.error('💥 Login exception:', error);
+      const errorMsg = error.message || 'Terjadi kesalahan. Silakan coba lagi.';
+      setError(errorMsg);
+      toast.error(`Error: ${errorMsg}`, {
+        duration: 5000,
+      });
+    }
+  };
+
+  return (
+    <div className='flex items-center justify-center min-h-screen px-4 bg-gradient-to-br from-blue-50 to-indigo-100'>
+      <Card className='w-full max-w-md'>
+        <CardHeader className='space-y-1'>
+          <CardTitle className='text-2xl font-bold text-center'>
+            Masuk ke Akun
+          </CardTitle>
+          <CardDescription className='text-center'>
+            Masukkan email dan password Anda untuk melanjutkan
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit(onSubmit)} className='space-y-4'>
+            {error && (
+              <Alert variant='destructive'>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            <div className='space-y-2'>
+              <Label htmlFor='email'>Email</Label>
+              <Input
+                id='email'
+                type='email'
+                placeholder='nama@email.com'
+                {...register('email')}
+                className={errors.email ? 'border-red-500' : ''}
+              />
+              {errors.email && (
+                <p className='text-sm text-red-500'>{errors.email.message}</p>
+              )}
+            </div>
+
+            <div className='space-y-2'>
+              <Label htmlFor='password'>Password</Label>
+              <div className='relative'>
+                <Input
+                  id='password'
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder='Masukkan password'
+                  {...register('password')}
+                  className={errors.password ? 'border-red-500 pr-10' : 'pr-10'}
+                />
+                <button
+                  type='button'
+                  onClick={() => setShowPassword(!showPassword)}
+                  className='absolute text-gray-500 transform -translate-y-1/2 right-3 top-1/2 hover:text-gray-700'
+                >
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
+              {errors.password && (
+                <p className='text-sm text-red-500'>
+                  {errors.password.message}
+                </p>
+              )}
+            </div>
+
+            <Button type='submit' className='w-full' disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className='w-4 h-4 mr-2 animate-spin' />
+                  Masuk...
+                </>
+              ) : (
+                'Masuk'
+              )}
+            </Button>
+          </form>
+
+          {/* Google OAuth */}
+          <div className='mt-4'>
+            <Button
+              type='button'
+              variant='outline'
+              className='w-full'
+              onClick={() => {
+                window.location.href =
+                  'http://localhost:8000/auth/google/redirect';
+              }}
+            >
+              Lanjutkan dengan Google
+            </Button>
+          </div>
+
+          <div className='mt-6 space-y-2 text-center'>
+            <p className='text-sm text-gray-600'>
+              <Link
+                to='/forgot-password'
+                className='font-medium text-blue-600 hover:text-blue-500'
+              >
+                Lupa password?
+              </Link>
+            </p>
+            <p className='text-sm text-gray-600'>
+              Belum punya akun?{' '}
+              <Link
+                to='/register'
+                className='font-medium text-blue-600 hover:text-blue-500'
+              >
+                Daftar sekarang
+              </Link>
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+export default Login;

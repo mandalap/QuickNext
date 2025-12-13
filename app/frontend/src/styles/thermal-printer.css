@@ -1,0 +1,284 @@
+/* ============================================
+   CSS untuk Printer Termal Eppos
+   Ukuran: 58mm (default) atau 80mm
+   ============================================ */
+
+/* Print Styles untuk Thermal Printer */
+@media print {
+  @page {
+    size: 80mm auto; /* 80mm width, auto height */
+    margin: 0;
+    padding: 0;
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  html,
+  body {
+    width: 80mm;
+    margin: 0;
+    padding: 0;
+    font-family: 'Courier New', monospace;
+    font-size: 10pt;
+    line-height: 1.2;
+    color: #000;
+    background: #fff;
+  }
+
+  body {
+    padding: 5mm;
+  }
+
+  /* Hide non-printable elements */
+  .no-print,
+  button,
+  .print\\:hidden {
+    display: none !important;
+  }
+
+  /* Receipt Container */
+  .receipt-content,
+  .thermal-receipt {
+    width: 100%;
+    max-width: 80mm;
+    margin: 0 auto;
+    padding: 0;
+    background: #fff;
+    color: #000;
+    font-family: 'Courier New', monospace;
+  }
+
+  /* Header */
+  .receipt-content h2 {
+    font-size: 14pt;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 4pt;
+    text-transform: uppercase;
+  }
+
+  .receipt-content p {
+    font-size: 9pt;
+    text-align: center;
+    margin: 2pt 0;
+  }
+
+  /* Divider */
+  .receipt-content hr,
+  .receipt-content .border-t,
+  .receipt-content .border-b {
+    border-top: 1px dashed #000;
+    border-bottom: none;
+    margin: 4pt 0;
+  }
+
+  /* Transaction Info - Each line on separate row */
+  .receipt-content .space-y-1 > div,
+  .receipt-content .space-y-0\.5 > div {
+    margin-bottom: 2pt;
+    line-height: 1.4;
+  }
+
+  .receipt-content .space-y-1 > div:last-child,
+  .receipt-content .space-y-0\.5 > div:last-child {
+    margin-bottom: 0;
+  }
+
+  /* Items Table - Use table layout for strict column control */
+  .receipt-content table.receipt-items-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+
+  .receipt-content table.receipt-items-table th,
+  .receipt-content table.receipt-items-table td {
+    font-size: 9pt;
+    padding: 2pt;
+    vertical-align: top;
+  }
+
+  .receipt-content table.receipt-items-table th {
+    font-weight: bold;
+  }
+
+  /* Fixed column widths - prevent overlap */
+  /* Total: ~62mm untuk kolom (leaving 18mm untuk item name di 80mm printer) */
+  .receipt-content table.receipt-items-table .receipt-col-item {
+    width: auto !important; /* Item name - takes remaining space */
+    min-width: 0;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    padding-right: 3pt;
+  }
+
+  .receipt-content table.receipt-items-table .receipt-col-qty {
+    width: 10mm !important; /* QTY */
+    min-width: 10mm !important;
+    max-width: 10mm !important;
+    text-align: center;
+  }
+
+  .receipt-content table.receipt-items-table .receipt-col-price {
+    width: 26mm !important; /* HARGA - enough untuk "Rp 150.000" */
+    min-width: 26mm !important;
+    max-width: 26mm !important;
+    white-space: nowrap !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: right;
+    padding-right: 3pt;
+  }
+
+  .receipt-content table.receipt-items-table .receipt-col-subtotal {
+    width: 28mm !important; /* SUBTOTAL - enough untuk "Rp 150.000" */
+    min-width: 28mm !important;
+    max-width: 28mm !important;
+    white-space: nowrap !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: right;
+  }
+
+  /* Flexbox fallback for screen view */
+  .receipt-content .flex {
+    display: flex;
+    width: 100%;
+    align-items: flex-start;
+  }
+
+  .receipt-content .flex.justify-between {
+    justify-content: space-between;
+    gap: 4pt;
+  }
+
+  /* Text Alignment */
+  .text-center {
+    text-align: center;
+  }
+
+  .text-right {
+    text-align: right;
+  }
+
+  .text-left {
+    text-align: left;
+  }
+
+  /* Prevent text overflow and overlap */
+  .truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Ensure proper spacing between columns - using gap instead of margin */
+  .receipt-content .flex.justify-between {
+    gap: 3pt;
+  }
+
+  /* Prevent text overflow in price columns */
+  .receipt-content .text-right {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Ensure item name doesn't overflow */
+  .receipt-content .flex-1 {
+    max-width: calc(100% - 70mm); /* Reserve space for other columns */
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Totals */
+  .receipt-content .font-bold {
+    font-weight: bold;
+  }
+
+  .receipt-content .text-lg {
+    font-size: 11pt;
+  }
+
+  /* Footer */
+  .receipt-content .text-center p {
+    font-size: 8pt;
+    margin: 3pt 0;
+  }
+
+  /* Prevent page breaks */
+  .receipt-content > * {
+    page-break-inside: avoid;
+  }
+
+  /* For 58mm printers (smaller) */
+  @media print and (max-width: 58mm) {
+    body {
+      width: 58mm;
+      padding: 3mm;
+      font-size: 8pt;
+    }
+
+    .receipt-content {
+      max-width: 58mm;
+    }
+
+    .receipt-content h2 {
+      font-size: 12pt;
+    }
+
+    .receipt-content p,
+    .receipt-content .flex > div {
+      font-size: 7pt;
+    }
+
+    /* Adjust column widths for 58mm */
+    .receipt-content table.receipt-items-table .receipt-col-qty {
+      width: 8mm !important;
+      min-width: 8mm !important;
+      max-width: 8mm !important;
+    }
+
+    .receipt-content table.receipt-items-table .receipt-col-price {
+      width: 18mm !important;
+      min-width: 18mm !important;
+      max-width: 18mm !important;
+    }
+
+    .receipt-content table.receipt-items-table .receipt-col-subtotal {
+      width: 20mm !important;
+      min-width: 20mm !important;
+      max-width: 20mm !important;
+    }
+  }
+}
+
+/* Screen Styles (untuk preview) */
+@media screen {
+  .receipt-content {
+    max-width: 80mm;
+    margin: 0 auto;
+    padding: 10mm;
+    background: #fff;
+    color: #000;
+    font-family: 'Courier New', monospace;
+    font-size: 10pt;
+    line-height: 1.2;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  }
+
+  /* For smaller preview */
+  @media (max-width: 400px) {
+    .receipt-content {
+      max-width: 58mm;
+      padding: 5mm;
+      font-size: 8pt;
+    }
+  }
+}

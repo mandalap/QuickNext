@@ -1,0 +1,26 @@
+# TODO: Membuat API Lengkap untuk POS System
+
+- [x] Tambahkan trait HasApiTokens ke model User
+- [x] Buat file routes/api.php dengan route register dan login
+- [x] Buat controller Api/AuthController dengan method register dan login
+- [x] Jalankan php artisan install:api untuk Sanctum
+- [x] Buat semua controller API:
+  - [x] DashboardController
+  - [x] ProductController
+  - [x] CategoryController
+  - [x] CustomerController
+  - [x] OrderController
+  - [x] POSController
+  - [x] KitchenController
+  - [x] DiscountController
+  - [x] EmployeeController
+  - [x] ReportController
+  - [x] InventoryController
+  - [x] TableController
+  - [x] SettingsController
+  - [x] OnlinePlatformController
+- [x] Tambahkan use statements untuk semua controller di routes/api.php
+- [x] Tambahkan route public untuk self-service dan webhooks
+- [x] Buat SelfServiceController untuk menu, place order, dan status order
+- [x] Tambahkan method webhook untuk GrabFood, GoFood, ShopeeFood di OnlinePlatformController
+- [x] Tambahkan route model bindings, middleware groups, dan custom patterns

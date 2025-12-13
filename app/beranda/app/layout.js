@@ -1,0 +1,102 @@
+import { Inter } from 'next/font/google'
+import './globals.css'
+
+const inter = Inter({ subsets: ['latin'] })
+
+export const metadata = {
+  title: 'QuickKasir - Aplikasi Kasir Modern Berbasis Cloud untuk UMKM',
+  description: 'QuickKasir — Aplikasi kasir modern berbasis cloud untuk UMKM dan bisnis multi-outlet. Fitur lengkap, cepat, mudah digunakan, dan harga terjangkau. Kelola transaksi, stok, dan laporan dalam satu platform. Solusi POS terbaik untuk meningkatkan efisiensi bisnis Anda.',
+  keywords: 'QuickKasir, POS, aplikasi kasir, sistem kasir, kasir online, POS Indonesia, aplikasi kasir UMKM, kasir multi outlet, cloud POS, manajemen stok, laporan penjualan, aplikasi kasir modern, sistem kasir cloud, POS untuk UMKM, software kasir, aplikasi toko, sistem inventory',
+  authors: [{ name: 'QuickKasir' }],
+  creator: 'QuickKasir',
+  publisher: 'QuickKasir',
+  robots: 'index, follow',
+  openGraph: {
+    type: 'website',
+    locale: 'id_ID',
+    url: 'https://QuickKasir.com',
+    siteName: 'QuickKasir',
+    title: 'QuickKasir - Aplikasi Kasir Modern Berbasis Cloud untuk UMKM',
+    description: 'Solusi POS modern untuk UMKM dan bisnis multi-outlet. Kelola bisnis lebih mudah dengan QuickKasir. Fitur lengkap, cepat, dan harga terjangkau.',
+    images: [
+      {
+        url: 'https://images.unsplash.com/photo-1658282653150-67e2023a67e3',
+        width: 1200,
+        height: 630,
+        alt: 'QuickKasir POS Dashboard'
+      }
+    ]
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'QuickKasir - Aplikasi Kasir Modern Berbasis Cloud',
+    description: 'Solusi POS modern untuk UMKM dan bisnis multi-outlet. Kelola bisnis lebih mudah dengan QuickKasir.',
+    images: ['https://images.unsplash.com/photo-1658282653150-67e2023a67e3']
+  },
+  icons: {
+    icon: '/favicon.ico'
+  }
+}
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="id" suppressHydrationWarning>
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'SoftwareApplication',
+              name: 'QuickKasir',
+              applicationCategory: 'BusinessApplication',
+              operatingSystem: 'Web, Windows, Mac, Android, iOS',
+              offers: {
+                '@type': 'Offer',
+                price: '199000',
+                priceCurrency: 'IDR',
+                priceValidUntil: '2025-12-31'
+              },
+              aggregateRating: {
+                '@type': 'AggregateRating',
+                ratingValue: '4.9',
+                ratingCount: '10000'
+              },
+              description: 'Aplikasi kasir modern berbasis cloud untuk UMKM dan bisnis multi-outlet. Fitur lengkap, cepat, mudah digunakan, dan harga terjangkau. Solusi POS terbaik untuk meningkatkan efisiensi bisnis Anda.'
+            })
+          }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'BreadcrumbList',
+              itemListElement: [
+                {
+                  '@type': 'ListItem',
+                  position: 1,
+                  name: 'Home',
+                  item: 'https://QuickKasir.com'
+                },
+                {
+                  '@type': 'ListItem',
+                  position: 2,
+                  name: 'Fitur',
+                  item: 'https://QuickKasir.com#features'
+                },
+                {
+                  '@type': 'ListItem',
+                  position: 3,
+                  name: 'Harga',
+                  item: 'https://QuickKasir.com#pricing'
+                }
+              ]
+            })
+          }}
+        />
+      </head>
+      <body className={inter.className}>{children}</body>
+    </html>
+  )
+}
