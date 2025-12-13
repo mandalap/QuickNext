@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { Badge } from '@/components/ui/badge'
+import FAQSchema from './components/FAQSchema'
 
 export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -329,45 +330,58 @@ export default function LandingPage() {
   ]
 
   const faqs = [
+    // ✅ SEO: Keyword-focused FAQs untuk Google Suggest
     {
-      question: 'Apakah QuickKasir POS cocok untuk multi-cabang?',
-      answer: 'Ya, sangat cocok! QuickKasir dirancang khusus untuk mendukung bisnis multi-cabang dengan sinkronisasi data real-time antar outlet. Anda bisa mengelola semua cabang dari satu dashboard pusat.'
+      question: 'Apa itu POS kasir online?',
+      answer: 'POS kasir online adalah sistem point of sale berbasis cloud yang memungkinkan Anda mengelola transaksi penjualan secara online. QuickKasir adalah aplikasi POS kasir online terbaik untuk UMKM yang menyediakan fitur lengkap seperti manajemen stok, laporan penjualan, multi-outlet, dan integrasi payment gateway seperti QRIS. Dengan POS kasir online, Anda bisa mengelola bisnis dari mana saja, kapan saja.'
     },
     {
-      question: 'Apakah data transaksi saya aman?',
-      answer: 'Keamanan data adalah prioritas kami. Kami menggunakan enkripsi tingkat enterprise (SSL/TLS), backup otomatis harian, dan server di data center tersertifikasi ISO 27001. Data Anda dijamin aman.'
+      question: 'Berapa harga POS kasir online untuk UMKM?',
+      answer: 'Harga POS kasir online QuickKasir untuk UMKM dimulai dari Rp 199.000/bulan untuk paket Basic (1 outlet, 2 user). Paket Professional seharga Rp 499.000/bulan (5 outlet, unlimited user) dan paket Enterprise Rp 999.000/bulan (unlimited outlet). Semua paket termasuk free trial 14 hari tanpa kartu kredit. Harga POS kasir online kami sangat terjangkau dibandingkan dengan sistem POS tradisional yang memerlukan investasi besar di awal.'
+    },
+    {
+      question: 'POS kasir online UMKM mana yang terbaik?',
+      answer: 'QuickKasir adalah POS kasir online terbaik untuk UMKM karena dirancang khusus untuk kebutuhan bisnis kecil dan menengah. Fitur unggulan termasuk: multi-outlet management, real-time inventory, laporan penjualan lengkap, integrasi QRIS, mode offline, dan support 24/7. QuickKasir juga mudah digunakan, tidak memerlukan instalasi kompleks, dan bisa diakses dari berbagai perangkat (komputer, tablet, smartphone).'
+    },
+    {
+      question: 'Apakah QuickKasir POS cocok untuk multi-cabang?',
+      answer: 'Ya, sangat cocok! QuickKasir dirancang khusus untuk mendukung bisnis multi-cabang dengan sinkronisasi data real-time antar outlet. Anda bisa mengelola semua cabang dari satu dashboard pusat. Sistem POS kasir online kami memungkinkan Anda memantau penjualan, stok, dan laporan dari semua outlet secara bersamaan.'
+    },
+    {
+      question: 'Apakah data transaksi saya aman di POS kasir online?',
+      answer: 'Keamanan data adalah prioritas kami. Kami menggunakan enkripsi tingkat enterprise (SSL/TLS), backup otomatis harian, dan server di data center tersertifikasi ISO 27001. Data Anda dijamin aman. POS kasir online QuickKasir menggunakan teknologi cloud terpercaya dengan sistem keamanan berlapis untuk melindungi data transaksi dan informasi bisnis Anda.'
     },
     {
       question: 'Bagaimana cara upgrade ke paket yang lebih tinggi?',
-      answer: 'Sangat mudah! Anda bisa upgrade kapan saja melalui dashboard Anda. Cukup pilih paket yang diinginkan, dan sistem akan otomatis mengaktifkan fitur tambahan. Tidak ada downtime.'
+      answer: 'Sangat mudah! Anda bisa upgrade kapan saja melalui dashboard Anda. Cukup pilih paket yang diinginkan, dan sistem akan otomatis mengaktifkan fitur tambahan. Tidak ada downtime. Upgrade paket POS kasir online QuickKasir bisa dilakukan dalam hitungan menit tanpa kehilangan data.'
     },
     {
-      question: 'Apakah ada biaya setup atau instalasi?',
-      answer: 'Tidak ada biaya setup! Anda hanya membayar biaya langganan bulanan sesuai paket yang dipilih. Untuk paket Enterprise, kami bahkan memberikan training gratis untuk tim Anda.'
+      question: 'Apakah ada biaya setup atau instalasi untuk POS kasir online?',
+      answer: 'Tidak ada biaya setup! Anda hanya membayar biaya langganan bulanan sesuai paket yang dipilih. Untuk paket Enterprise, kami bahkan memberikan training gratis untuk tim Anda. POS kasir online QuickKasir tidak memerlukan instalasi software kompleks - cukup daftar dan mulai gunakan langsung melalui browser.'
     },
     {
-      question: 'Apakah bisa digunakan offline?',
-      answer: 'Ya! QuickKasir memiliki mode offline untuk kasir, jadi transaksi tetap berjalan meskipun internet terputus. Data akan otomatis sinkronisasi saat koneksi kembali normal.'
+      question: 'Apakah POS kasir online bisa digunakan offline?',
+      answer: 'Ya! QuickKasir memiliki mode offline untuk kasir, jadi transaksi tetap berjalan meskipun internet terputus. Data akan otomatis sinkronisasi saat koneksi kembali normal. Fitur ini sangat penting untuk POS kasir online karena memastikan bisnis Anda tetap berjalan meskipun ada masalah koneksi internet.'
     },
     {
-      question: 'Perangkat apa saja yang bisa digunakan?',
-      answer: 'QuickKasir bisa digunakan di komputer, laptop, tablet, dan smartphone. Kompatibel dengan Windows, Mac, Android, dan iOS. Cukup akses melalui browser atau download aplikasi mobile kami.'
+      question: 'Perangkat apa saja yang bisa digunakan untuk POS kasir online?',
+      answer: 'QuickKasir bisa digunakan di komputer, laptop, tablet, dan smartphone. Kompatibel dengan Windows, Mac, Android, dan iOS. Cukup akses melalui browser atau download aplikasi mobile kami. POS kasir online QuickKasir fleksibel dan bisa digunakan di berbagai perangkat sesuai kebutuhan bisnis Anda.'
     },
     {
-      question: 'Apakah ada trial gratis?',
-      answer: 'Ya! Kami menyediakan free trial 14 hari dengan akses penuh ke semua fitur Professional. Tidak perlu kartu kredit untuk memulai trial.'
+      question: 'Apakah ada trial gratis untuk POS kasir online?',
+      answer: 'Ya! Kami menyediakan free trial 14 hari dengan akses penuh ke semua fitur Professional. Tidak perlu kartu kredit untuk memulai trial. Coba POS kasir online QuickKasir secara gratis dan rasakan kemudahan mengelola bisnis dengan sistem modern.'
     },
     {
-      question: 'Bagaimana dengan integrasi printer dan perangkat lain?',
-      answer: 'BizManager mendukung berbagai printer thermal, barcode scanner, cash drawer, dan payment gateway seperti QRIS. Tim kami siap membantu proses integrasi perangkat Anda.'
+      question: 'Bagaimana dengan integrasi printer dan perangkat lain untuk POS kasir online?',
+      answer: 'QuickKasir mendukung berbagai printer thermal, barcode scanner, cash drawer, dan payment gateway seperti QRIS. Tim kami siap membantu proses integrasi perangkat Anda. POS kasir online kami kompatibel dengan perangkat POS standar yang biasa digunakan di toko dan restoran.'
     },
     {
       question: 'Apakah bisa custom laporan sesuai kebutuhan bisnis saya?',
-      answer: 'Ya, terutama untuk paket Enterprise. Anda bisa request custom report sesuai kebutuhan bisnis. Tim kami akan membantu membuat laporan yang Anda butuhkan.'
+      answer: 'Ya, terutama untuk paket Enterprise. Anda bisa request custom report sesuai kebutuhan bisnis. Tim kami akan membantu membuat laporan yang Anda butuhkan. POS kasir online QuickKasir menyediakan berbagai template laporan dan juga bisa dibuat custom sesuai kebutuhan spesifik bisnis UMKM Anda.'
     },
     {
-      question: 'Bagaimana cara batalkan langganan?',
-      answer: 'Anda bebas batalkan kapan saja tanpa penalty. Cukup hubungi tim support kami minimal 7 hari sebelum periode billing berikutnya. Data Anda akan tetap tersimpan selama 30 hari setelah pembatalan.'
+      question: 'Bagaimana cara batalkan langganan POS kasir online?',
+      answer: 'Anda bebas batalkan kapan saja tanpa penalty. Cukup hubungi tim support kami minimal 7 hari sebelum periode billing berikutnya. Data Anda akan tetap tersimpan selama 30 hari setelah pembatalan. Tidak ada kontrak jangka panjang - fleksibilitas penuh untuk bisnis UMKM.'
     }
   ]
 
@@ -495,13 +509,13 @@ export default function LandingPage() {
                   🚀 Solusi POS Modern #1 di Indonesia
                 </Badge>
                 <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight">
-                  Kelola Bisnis Lebih Mudah Dengan{' '}
                   <span className="bg-gradient-to-r from-emerald-600 to-slate-800 bg-clip-text text-transparent">
-                    QuickKasir
+                    POS Kasir Online UMKM
                   </span>
+                  {' '}Terbaik untuk Bisnis Anda
                 </h1>
                 <p className="text-lg md:text-xl text-muted-foreground mb-8">
-                  POS modern berbasis cloud untuk semua jenis usaha. Kelola transaksi, stok, dan laporan dalam satu platform. Tingkatkan efisiensi bisnis hingga 70% dengan otomasi cerdas.
+                  <strong>QuickKasir</strong> adalah aplikasi <strong>POS kasir online</strong> modern berbasis cloud yang dirancang khusus untuk <strong>UMKM</strong>. Kelola transaksi, stok, dan laporan dalam satu platform. <strong>Harga POS kasir online</strong> kami terjangkau mulai dari Rp 199.000/bulan. Tingkatkan efisiensi bisnis hingga 70% dengan otomasi cerdas.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4">
                   <motion.div
@@ -1049,6 +1063,9 @@ export default function LandingPage() {
               viewport={{ once: true }}
               className="max-w-3xl mx-auto"
             >
+              {/* ✅ SEO: FAQ Schema untuk Google Rich Snippets & Suggest */}
+              <FAQSchema faqs={faqs} />
+              
               <Accordion type="single" collapsible className="space-y-4">
                 {faqs.map((faq, index) => (
                   <AccordionItem key={index} value={`item-${index}`} className="border rounded-lg px-6">

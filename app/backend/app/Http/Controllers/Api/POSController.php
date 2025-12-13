@@ -281,13 +281,26 @@ class POSController extends Controller
             $itemCount = $order->orderItems->count();
             $itemsText = $itemCount > 1 ? "{$itemCount} item" : "{$itemCount} item";
 
-            // Persist notification for new order
+            // ✅ SECURITY: Persist notification for new order with role-based targeting
             try {
+                // Determine role targets based on order type
+                $roleTargets = ['kitchen', 'owner', 'admin']; // Always notify kitchen, owner, admin
+                
+                // Add waiter if dine-in order
+                if ($order->type === 'dine_in') {
+                    $roleTargets[] = 'waiter';
+                }
+                
+                // Add kasir if payment is pending (kasir needs to process payment)
+                if ($order->payment_status === 'pending') {
+                    $roleTargets[] = 'kasir';
+                }
+
                 \App\Models\AppNotification::create([
                     'business_id' => $order->business_id,
                     'outlet_id' => $order->outlet_id,
                     'user_id' => null,
-                    'role_targets' => ['waiter','kasir','kitchen','owner','admin'],
+                    'role_targets' => array_unique($roleTargets), // Remove duplicates
                     'type' => 'order.created',
                     'title' => 'Order Baru: ' . $order->order_number,
                     'message' => "{$itemsText} - Total: Rp " . number_format($order->total, 0, ',', '.'),
@@ -299,6 +312,7 @@ class POSController extends Controller
                         'table_id' => $order->table_id,
                         'payment_status' => $order->payment_status,
                         'status' => $order->status,
+                        'order_type' => $order->type,
                     ],
                 ]);
             } catch (\Exception $e) {
@@ -575,6 +589,32 @@ class POSController extends Controller
             }
 
             $order->save();
+
+            // ✅ SECURITY: Send notification when order is paid/completed
+            if ($totalPaid >= $order->total) {
+                try {
+                    \App\Models\AppNotification::create([
+                        'business_id' => $order->business_id,
+                        'outlet_id' => $order->outlet_id,
+                        'user_id' => null,
+                        'role_targets' => ['kasir', 'owner', 'admin'], // Payment completed - notify kasir, owner, admin
+                        'type' => 'order.paid',
+                        'title' => 'Pembayaran Selesai: ' . $order->order_number,
+                        'message' => "Order #{$order->order_number} telah dibayar lunas. Total: Rp " . number_format($order->total, 0, ',', '.'),
+                        'severity' => 'success',
+                        'resource_type' => 'order',
+                        'resource_id' => $order->id,
+                        'meta' => [
+                            'order_number' => $order->order_number,
+                            'payment_status' => 'paid',
+                            'status' => 'completed',
+                            'total_paid' => $totalPaid,
+                        ],
+                    ]);
+                } catch (\Exception $e) {
+                    \Log::warning('POSController: Failed to create payment notification', ['error' => $e->getMessage()]);
+                }
+            }
 
             // If order is completed and has shift_id, update shift statistics
             if ($order->status === 'completed' && $order->shift_id) {

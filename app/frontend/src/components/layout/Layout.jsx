@@ -1,6 +1,7 @@
 import {
   Activity,
   ArrowRightLeft,
+  Bell,
   Building2,
   Calculator,
   ChevronDown,
@@ -1190,6 +1191,15 @@ const Layout = () => {
                   >
                     <Lock className='w-4 h-4 mr-2' />
                     <span>Ganti Password</span>
+                  </DropdownMenuItem>
+                  
+                  {/* Push Notification Settings - All authenticated users */}
+                  <DropdownMenuItem
+                    onClick={() => navigate('/settings/push-notifications')}
+                    data-testid='push-notifications-menu'
+                  >
+                    <Bell className='w-4 h-4 mr-2' />
+                    <span>Push Notifications</span>
                   </DropdownMenuItem>
                   
                   {/* Refresh Subscription Features Button - Only for Owner/Super Admin */}

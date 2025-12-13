@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Activity,
   AlertCircle,
@@ -323,6 +323,7 @@ const Dashboard = () => {
 
   const navigate = useNavigate();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const [refreshing, setRefreshing] = useState(false);
 
@@ -805,11 +806,57 @@ const Dashboard = () => {
     try {
       // ✅ FIX: Also reload businesses if currentBusiness is null
       if (!currentBusiness && loadBusinesses) {
-        console.log('🔄 Dashboard: Reloading businesses during refresh...');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('🔄 Dashboard: Reloading businesses during refresh...');
+        }
         await loadBusinesses(undefined, true); // Force refresh
       }
 
-      await Promise.all([refetchSales(), refetchOrders(), refetchProducts()]);
+      // ✅ FIX: Invalidate query cache first to force fresh data
+      const dateParams = getDateParams();
+      
+      // Invalidate all related queries to mark them as stale (this is synchronous)
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.sales.stats(dateParams, currentOutlet?.id),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.sales.orders(
+          {
+            page: 1,
+            limit: 5,
+            ...dateParams,
+          },
+          currentOutlet?.id
+        ),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.dashboard.topProducts(
+          {
+            page: currentPage,
+            limit: itemsPerPage,
+            ...dateParams,
+          },
+          currentOutlet?.id
+        ),
+      });
+
+      // ✅ FIX: Force refetch all queries immediately after invalidate
+      // Using cancelRefetch: false to ensure fresh data is fetched even if query is in progress
+      const [salesResult, ordersResult, productsResult] = await Promise.all([
+        refetchSales({ cancelRefetch: false }),
+        refetchOrders({ cancelRefetch: false }),
+        refetchProducts({ cancelRefetch: false }),
+      ]);
+      
+      // Log for debugging (only in development)
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔄 Dashboard refresh completed:', {
+          sales: salesResult?.data ? '✅' : '❌',
+          orders: ordersResult?.data ? '✅' : '❌',
+          products: productsResult?.data ? '✅' : '❌',
+        });
+      }
+      
       setLastUpdated(new Date());
       toast({
         title: 'Berhasil!',
@@ -817,7 +864,9 @@ const Dashboard = () => {
         variant: 'default',
       });
     } catch (error) {
-      console.error('Error refreshing dashboard:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error refreshing dashboard:', error);
+      }
       toast({
         title: 'Error!',
         description: 'Gagal memuat ulang data dashboard',
@@ -837,6 +886,11 @@ const Dashboard = () => {
     loadingOrders,
     loadingProducts,
     toast,
+    queryClient,
+    getDateParams,
+    currentOutlet?.id,
+    currentPage,
+    itemsPerPage,
   ]);
 
   // Handle reset filter - kembalikan ke default

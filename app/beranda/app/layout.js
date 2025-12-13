@@ -3,39 +3,89 @@ import './globals.css'
 
 const inter = Inter({ subsets: ['latin'] })
 
+const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://quickkasir.com';
+
 export const metadata = {
-  title: 'QuickKasir - Aplikasi Kasir Modern Berbasis Cloud untuk UMKM',
+  metadataBase: new URL(baseUrl),
+  title: {
+    default: 'QuickKasir - Aplikasi Kasir Modern Berbasis Cloud untuk UMKM',
+    template: '%s | QuickKasir'
+  },
   description: 'QuickKasir — Aplikasi kasir modern berbasis cloud untuk UMKM dan bisnis multi-outlet. Fitur lengkap, cepat, mudah digunakan, dan harga terjangkau. Kelola transaksi, stok, dan laporan dalam satu platform. Solusi POS terbaik untuk meningkatkan efisiensi bisnis Anda.',
-  keywords: 'QuickKasir, POS, aplikasi kasir, sistem kasir, kasir online, POS Indonesia, aplikasi kasir UMKM, kasir multi outlet, cloud POS, manajemen stok, laporan penjualan, aplikasi kasir modern, sistem kasir cloud, POS untuk UMKM, software kasir, aplikasi toko, sistem inventory',
-  authors: [{ name: 'QuickKasir' }],
+  keywords: [
+    'QuickKasir',
+    'POS',
+    'aplikasi kasir',
+    'sistem kasir',
+    'kasir online',
+    'POS Indonesia',
+    'aplikasi kasir UMKM',
+    'kasir multi outlet',
+    'cloud POS',
+    'manajemen stok',
+    'laporan penjualan',
+    'aplikasi kasir modern',
+    'sistem kasir cloud',
+    'POS untuk UMKM',
+    'software kasir',
+    'aplikasi toko',
+    'sistem inventory',
+    'point of sale',
+    'kasir restoran',
+    'kasir toko',
+    'aplikasi kasir gratis',
+    'software kasir online'
+  ],
+  authors: [{ name: 'QuickKasir', url: baseUrl }],
   creator: 'QuickKasir',
   publisher: 'QuickKasir',
-  robots: 'index, follow',
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
   openGraph: {
     type: 'website',
     locale: 'id_ID',
-    url: 'https://QuickKasir.com',
+    url: baseUrl,
     siteName: 'QuickKasir',
     title: 'QuickKasir - Aplikasi Kasir Modern Berbasis Cloud untuk UMKM',
     description: 'Solusi POS modern untuk UMKM dan bisnis multi-outlet. Kelola bisnis lebih mudah dengan QuickKasir. Fitur lengkap, cepat, dan harga terjangkau.',
     images: [
       {
-        url: 'https://images.unsplash.com/photo-1658282653150-67e2023a67e3',
+        url: `${baseUrl}/og-image.jpg`, // You should create this image
         width: 1200,
         height: 630,
-        alt: 'QuickKasir POS Dashboard'
+        alt: 'QuickKasir POS Dashboard',
       }
-    ]
+    ],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'QuickKasir - Aplikasi Kasir Modern Berbasis Cloud',
     description: 'Solusi POS modern untuk UMKM dan bisnis multi-outlet. Kelola bisnis lebih mudah dengan QuickKasir.',
-    images: ['https://images.unsplash.com/photo-1658282653150-67e2023a67e3']
+    images: [`${baseUrl}/og-image.jpg`],
+    creator: '@quickkasir',
+  },
+  alternates: {
+    canonical: baseUrl,
   },
   icons: {
-    icon: '/favicon.ico'
-  }
+    icon: '/favicon.ico',
+    apple: '/apple-touch-icon.png',
+  },
+  verification: {
+    // Add your verification codes here when available
+    // google: 'your-google-verification-code',
+    // yandex: 'your-yandex-verification-code',
+    // yahoo: 'your-yahoo-verification-code',
+  },
 }
 
 export default function RootLayout({ children }) {
@@ -51,18 +101,34 @@ export default function RootLayout({ children }) {
               name: 'QuickKasir',
               applicationCategory: 'BusinessApplication',
               operatingSystem: 'Web, Windows, Mac, Android, iOS',
+              url: baseUrl,
               offers: {
                 '@type': 'Offer',
                 price: '199000',
                 priceCurrency: 'IDR',
-                priceValidUntil: '2025-12-31'
+                priceValidUntil: '2025-12-31',
+                availability: 'https://schema.org/InStock',
+                url: `${baseUrl}#pricing`
               },
               aggregateRating: {
                 '@type': 'AggregateRating',
                 ratingValue: '4.9',
-                ratingCount: '10000'
+                ratingCount: '10000',
+                bestRating: '5',
+                worstRating: '1'
               },
-              description: 'Aplikasi kasir modern berbasis cloud untuk UMKM dan bisnis multi-outlet. Fitur lengkap, cepat, mudah digunakan, dan harga terjangkau. Solusi POS terbaik untuk meningkatkan efisiensi bisnis Anda.'
+              description: 'Aplikasi kasir modern berbasis cloud untuk UMKM dan bisnis multi-outlet. Fitur lengkap, cepat, mudah digunakan, dan harga terjangkau. Solusi POS terbaik untuk meningkatkan efisiensi bisnis Anda.',
+              featureList: [
+                'Multi Outlet Management',
+                'Real-time Inventory',
+                'Sales Reports',
+                'Cloud Storage',
+                'Mobile POS',
+                'Payment Integration'
+              ],
+              screenshot: `${baseUrl}/screenshot.jpg`,
+              softwareVersion: '1.0',
+              releaseNotes: 'Initial release of QuickKasir POS System'
             })
           }}
         />
@@ -77,19 +143,25 @@ export default function RootLayout({ children }) {
                   '@type': 'ListItem',
                   position: 1,
                   name: 'Home',
-                  item: 'https://QuickKasir.com'
+                  item: baseUrl
                 },
                 {
                   '@type': 'ListItem',
                   position: 2,
                   name: 'Fitur',
-                  item: 'https://QuickKasir.com#features'
+                  item: `${baseUrl}#features`
                 },
                 {
                   '@type': 'ListItem',
                   position: 3,
                   name: 'Harga',
-                  item: 'https://QuickKasir.com#pricing'
+                  item: `${baseUrl}#pricing`
+                },
+                {
+                  '@type': 'ListItem',
+                  position: 4,
+                  name: 'Demo',
+                  item: `${baseUrl}#demo`
                 }
               ]
             })

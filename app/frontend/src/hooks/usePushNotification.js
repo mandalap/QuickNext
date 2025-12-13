@@ -210,6 +210,39 @@ export const usePushNotification = () => {
     }
   }, [user, currentBusiness, isSupported, checkSubscription]);
 
+  // ✅ AUTO-SUBSCRIBE: Auto-subscribe to push notifications after login (if permission granted)
+  useEffect(() => {
+    const autoSubscribe = async () => {
+      // Only auto-subscribe if:
+      // 1. Push notifications are supported
+      // 2. User is logged in
+      // 3. Business is selected
+      // 4. Permission is already granted (don't prompt automatically)
+      // 5. Not already subscribed
+      if (
+        isSupported &&
+        user &&
+        currentBusiness &&
+        permission === 'granted' &&
+        !isSubscribed &&
+        !isLoading
+      ) {
+        console.log('🔄 Auto-subscribing to push notifications...');
+        try {
+          await subscribe();
+          console.log('✅ Auto-subscribed to push notifications');
+        } catch (error) {
+          console.warn('⚠️ Auto-subscribe failed:', error);
+          // Don't show error toast for auto-subscribe (non-intrusive)
+        }
+      }
+    };
+
+    // Delay auto-subscribe slightly to avoid blocking initial render
+    const timeoutId = setTimeout(autoSubscribe, 2000);
+    return () => clearTimeout(timeoutId);
+  }, [isSupported, user, currentBusiness, permission, isSubscribed, isLoading, subscribe]);
+
   return {
     isSupported,
     permission,

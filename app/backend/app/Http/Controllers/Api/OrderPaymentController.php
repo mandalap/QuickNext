@@ -296,6 +296,30 @@ class OrderPaymentController extends Controller
                     // ✅ Generate receipt token when payment is confirmed
                     $order->generateReceiptToken();
 
+                    // ✅ SECURITY: Send notification when order payment is confirmed
+                    try {
+                        \App\Models\AppNotification::create([
+                            'business_id' => $order->business_id,
+                            'outlet_id' => $order->outlet_id,
+                            'user_id' => null,
+                            'role_targets' => ['kasir', 'kitchen', 'owner', 'admin'], // Payment confirmed - notify relevant roles
+                            'type' => 'order.paid',
+                            'title' => 'Pembayaran Dikonfirmasi: ' . $order->order_number,
+                            'message' => "Order #{$order->order_number} telah dibayar via {$notification['payment_type']}. Status: " . ($newStatus === 'confirmed' ? 'Dikonfirmasi' : 'Pending Konfirmasi'),
+                            'severity' => 'success',
+                            'resource_type' => 'order',
+                            'resource_id' => $order->id,
+                            'meta' => [
+                                'order_number' => $order->order_number,
+                                'payment_status' => 'paid',
+                                'status' => $newStatus,
+                                'payment_type' => $notification['payment_type'],
+                            ],
+                        ]);
+                    } catch (\Exception $e) {
+                        Log::warning('OrderPaymentController: Failed to create payment notification', ['error' => $e->getMessage()]);
+                    }
+
                     Log::info('Order payment confirmed', [
                         'order_id' => $order->id,
                         'payment_method' => $notification['payment_type'],

@@ -276,20 +276,57 @@ self.addEventListener('notificationclick', event => {
 
   event.notification.close();
 
-  const urlToOpen = event.notification.data?.url || '/';
+  // ✅ FIX: Determine URL based on notification data (role-based routing)
+  const notificationData = event.notification.data || {};
+  let urlToOpen = '/';
+
+  // Route based on notification type and resource
+  if (notificationData.type === 'order.created' || notificationData.type === 'order.paid' || notificationData.type === 'order.status_changed') {
+    // Order notifications - route based on user role
+    if (notificationData.resource_type === 'order' && notificationData.resource_id) {
+      // Kitchen role -> kitchen dashboard
+      if (notificationData.meta?.role === 'kitchen' || notificationData.tag?.includes('kitchen')) {
+        urlToOpen = '/kitchen';
+      }
+      // Waiter role -> waiter dashboard
+      else if (notificationData.meta?.role === 'waiter' || notificationData.tag?.includes('waiter')) {
+        urlToOpen = '/waiter';
+      }
+      // Kasir role -> POS
+      else if (notificationData.meta?.role === 'kasir' || notificationData.tag?.includes('kasir')) {
+        urlToOpen = '/pos';
+      }
+      // Owner/Admin -> orders list
+      else {
+        urlToOpen = '/orders';
+      }
+    }
+  } else if (notificationData.type === 'subscription.expiring' || notificationData.type === 'subscription.expired') {
+    urlToOpen = '/subscription-settings';
+  } else if (notificationData.url) {
+    urlToOpen = notificationData.url;
+  }
 
   event.waitUntil(
     clients
       .matchAll({ type: 'window', includeUncontrolled: true })
       .then(clientList => {
-        // Check if there's already a window/tab open with the target URL
+        // Check if there's already a window/tab open
         for (let i = 0; i < clientList.length; i++) {
           const client = clientList[i];
-          if (client.url === urlToOpen && 'focus' in client) {
-            return client.focus();
+          // Focus any open window (not just matching URL)
+          if ('focus' in client) {
+            return client.focus().then(() => {
+              // Post message to navigate to the correct page
+              client.postMessage({
+                type: 'NAVIGATE',
+                url: urlToOpen,
+                notificationData: notificationData
+              });
+            });
           }
         }
-        // If not, open a new window/tab
+        // If no window open, open a new one
         if (clients.openWindow) {
           return clients.openWindow(urlToOpen);
         }

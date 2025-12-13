@@ -597,6 +597,12 @@ class ProductController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
+        // ✅ FIX: Delete product image before deleting product
+        if ($product->image) {
+            $imageService = new ImageOptimizationService();
+            $imageService->deleteImage($product->image);
+        }
+
         $product->delete();
 
         // ✅ Clear cache setelah delete

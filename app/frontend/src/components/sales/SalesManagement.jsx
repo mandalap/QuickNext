@@ -190,6 +190,18 @@ const OrderCardItem = memo(({ index, style, data }) => {
           </div>
           <div className='flex items-center space-x-3'>
             {getStatusBadge(order.status)}
+            {getPaymentStatusBadge(order.payment_status)}
+            {/* ✅ NEW: Payment Method Badge - Always visible if order is paid */}
+            {order.payment_status === 'paid' && (() => {
+              // Get payment method from order.payment_method or from payments array
+              const paymentMethod = order.payment_method || 
+                (order.payments && order.payments.length > 0 
+                  ? order.payments[order.payments.length - 1]?.payment_method || 
+                    order.payments[order.payments.length - 1]?.method
+                  : null) || 
+                'cash';
+              return getPaymentMethodBadge(paymentMethod);
+            })()}
             <div className='text-right'>
               <p className='text-xl font-bold text-gray-900'>
                 {formatCurrency(
@@ -296,11 +308,20 @@ const OrderCardItem = memo(({ index, style, data }) => {
             </p>
           </div>
           <div>
-            <p className='text-gray-600 font-medium'>Pembayaran</p>
+            <p className='text-gray-600 font-medium'>Metode Pembayaran</p>
             <div className='mt-1'>
-              {getPaymentMethodBadge(
-                order.payment_method || order.paymentMethod || 'cash'
-              )}
+              {(() => {
+                // Get payment method from order.payment_method or from payments array
+                const paymentMethod = order.payment_method || 
+                  (order.payments && order.payments.length > 0 
+                    ? order.payments[order.payments.length - 1]?.payment_method || 
+                      order.payments[order.payments.length - 1]?.method
+                    : null) || 
+                  (order.payment_status === 'paid' ? 'cash' : null);
+                return paymentMethod ? getPaymentMethodBadge(paymentMethod) : (
+                  <span className='text-xs text-gray-500'>Belum ditentukan</span>
+                );
+              })()}
             </div>
           </div>
           <div>
@@ -2398,6 +2419,17 @@ const SalesManagement = () => {
                               <div className='flex items-center gap-2'>
                                 {getStatusBadge(order.status)}
                                 {getPaymentStatusBadge(order.payment_status)}
+                                {/* ✅ NEW: Payment Method Badge - Always visible if order is paid */}
+                                {order.payment_status === 'paid' && (() => {
+                                  // Get payment method from order.payment_method or from payments array
+                                  const paymentMethod = order.payment_method || 
+                                    (order.payments && order.payments.length > 0 
+                                      ? order.payments[order.payments.length - 1]?.payment_method || 
+                                        order.payments[order.payments.length - 1]?.method
+                                      : null) || 
+                                    'cash';
+                                  return getPaymentMethodBadge(paymentMethod);
+                                })()}
                               </div>
                             </div>
 
@@ -2428,6 +2460,45 @@ const SalesManagement = () => {
                                 );
                               })}
                             </div>
+
+                            {/* ✅ NEW: Payment Method Info - More visible */}
+                            {order.payment_status === 'paid' && (() => {
+                              // Get payment method from order.payment_method or from payments array
+                              const paymentMethod = order.payment_method || 
+                                (order.payments && order.payments.length > 0 
+                                  ? order.payments[order.payments.length - 1]?.payment_method || 
+                                    order.payments[order.payments.length - 1]?.method
+                                  : null) || 
+                                'cash';
+                              
+                              const paymentMethodLabels = {
+                                cash: 'Tunai',
+                                card: 'Kartu',
+                                qris: 'QRIS',
+                                transfer: 'Transfer',
+                                bank_transfer: 'Transfer Bank',
+                                midtrans: 'QRIS/E-Wallet',
+                                gopay: 'GoPay',
+                                shopeepay: 'ShopeePay',
+                                credit_card: 'Kartu Kredit',
+                                pay_later: 'Bayar di Kasir',
+                              };
+                              
+                              const methodLabel = paymentMethodLabels[paymentMethod] || paymentMethod;
+                              
+                              return (
+                                <div className='mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg'>
+                                  <div className='flex items-center justify-between'>
+                                    <span className='text-sm font-medium text-gray-700'>
+                                      💳 Metode Pembayaran:
+                                    </span>
+                                    <span className='text-sm font-semibold text-blue-700'>
+                                      {methodLabel}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })()}
 
                             {/* Payment Summary */}
                             <div className='pt-4 border-t space-y-1.5'>

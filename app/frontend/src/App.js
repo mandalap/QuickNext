@@ -27,6 +27,9 @@ const ForgotPassword = lazy(() => import('./components/Auth/ForgotPassword'));
 const ResetPassword = lazy(() => import('./components/Auth/ResetPassword'));
 const BusinessSetup = lazy(() => import('./components/business/BusinessSetup'));
 const Dashboard = lazy(() => import('./components/dashboards/Dashboard'));
+const RoleBasedDashboard = lazy(() =>
+  import('./components/dashboards/RoleBasedDashboard')
+);
 const AdminDashboard = lazy(() =>
   import('./components/dashboards/AdminDashboard')
 );
@@ -106,6 +109,7 @@ const PaymentFailed = lazy(() => import('./pages/PaymentFailed'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const CompleteProfilePage = lazy(() => import('./pages/CompleteProfilePage'));
 const ChangePasswordPage = lazy(() => import('./pages/ChangePasswordPage'));
+const PushNotificationSettings = lazy(() => import('./components/notifications/PushNotificationSettings'));
 const Attendance = lazy(() => import('./pages/Attendance'));
 
 // Loading component for Suspense fallback (branded)
@@ -496,7 +500,7 @@ function App() {
                               'kasir',
                             ]}
                           >
-                            <Dashboard />
+                            <RoleBasedDashboard />
                           </PrivateRoute>
                         }
                       />
@@ -843,6 +847,15 @@ function App() {
                         element={
                           <PrivateRoute>
                             <ChangePasswordPage />
+                          </PrivateRoute>
+                        }
+                      />
+                      {/* Push Notification Settings - All authenticated users */}
+                      <Route
+                        path='settings/push-notifications'
+                        element={
+                          <PrivateRoute>
+                            <PushNotificationSettings />
                           </PrivateRoute>
                         }
                       />

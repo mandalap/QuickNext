@@ -89,7 +89,7 @@ class ImageOptimizationService
     /**
      * Delete image file
      *
-     * @param string $path Relative path dari public directory
+     * @param string $path Relative path dari public directory (bisa dengan atau tanpa 'storage/' prefix)
      * @return bool
      */
     public function deleteImage($path)
@@ -98,11 +98,41 @@ class ImageOptimizationService
             return false;
         }
 
-        $fullPath = public_path($path);
+        // ✅ FIX: Handle both formats (with or without 'storage/' prefix)
+        // Database bisa menyimpan: "storage/products/xxx.webp" atau "products/xxx.webp"
+        $cleanPath = str_replace('storage/', '', $path);
+        
+        // Try multiple possible locations
+        $possiblePaths = [
+            public_path("storage/{$cleanPath}"),  // Standard Laravel storage symlink
+            storage_path("app/public/{$cleanPath}"),  // Actual storage location
+            public_path($path),  // Original path (backward compatibility)
+        ];
 
-        if (file_exists($fullPath)) {
-            return unlink($fullPath);
+        foreach ($possiblePaths as $fullPath) {
+            if (file_exists($fullPath)) {
+                try {
+                    unlink($fullPath);
+                    \Log::info('Image deleted successfully', [
+                        'original_path' => $path,
+                        'deleted_path' => $fullPath
+                    ]);
+                    return true;
+                } catch (\Exception $e) {
+                    \Log::error('Failed to delete image', [
+                        'path' => $fullPath,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
         }
+
+        // Log if image not found (might be already deleted or path incorrect)
+        \Log::warning('Image file not found for deletion', [
+            'original_path' => $path,
+            'clean_path' => $cleanPath,
+            'tried_paths' => $possiblePaths
+        ]);
 
         return false;
     }

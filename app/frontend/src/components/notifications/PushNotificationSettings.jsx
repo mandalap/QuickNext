@@ -1,4 +1,4 @@
-import { Bell, BellOff, CheckCircle, Loader2, XCircle } from 'lucide-react';
+import { AlertCircle, Bell, BellOff, CheckCircle, Loader2, XCircle } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { usePushNotification } from '../../hooks/usePushNotification';
@@ -140,13 +140,34 @@ const PushNotificationSettings = () => {
           </div>
         </div>
 
+        {/* Instructions when permission granted but not subscribed */}
+        {permission === 'granted' && !isSubscribed && (
+          <>
+            {!process.env.REACT_APP_VAPID_PUBLIC_KEY ? (
+              <Alert className='bg-red-50 border-red-200'>
+                <AlertCircle className='w-4 h-4 text-red-600' />
+                <AlertDescription className='text-sm text-red-800'>
+                  <strong>⚠️ VAPID Key Belum Di-set:</strong> Tambahkan <code>REACT_APP_VAPID_PUBLIC_KEY</code> ke file <code>.env.local</code> di folder <code>app/frontend/</code>, lalu restart development server.
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <Alert className='bg-blue-50 border-blue-200'>
+                <AlertDescription className='text-sm'>
+                  <strong>💡 Cara Mengaktifkan:</strong> Klik tombol <strong>&quot;Aktifkan Notifikasi&quot;</strong> di bawah untuk mulai menerima notifikasi push.
+                </AlertDescription>
+              </Alert>
+            )}
+          </>
+        )}
+
         {/* Actions */}
         <div className='flex gap-2'>
           {permission !== 'granted' ? (
             <Button
               onClick={handleRequestPermission}
               disabled={isProcessing || isLoading}
-              className='flex-1'
+              className='flex-1 bg-blue-600 hover:bg-blue-700'
+              size='lg'
             >
               {isProcessing || isLoading ? (
                 <>
@@ -166,6 +187,7 @@ const PushNotificationSettings = () => {
               disabled={isProcessing || isLoading}
               variant='destructive'
               className='flex-1'
+              size='lg'
             >
               {isProcessing || isLoading ? (
                 <>
@@ -182,13 +204,19 @@ const PushNotificationSettings = () => {
           ) : (
             <Button
               onClick={handleSubscribe}
-              disabled={isProcessing || isLoading}
-              className='flex-1'
+              disabled={isProcessing || isLoading || !process.env.REACT_APP_VAPID_PUBLIC_KEY}
+              className='flex-1 bg-green-600 hover:bg-green-700 text-white disabled:bg-gray-400 disabled:cursor-not-allowed'
+              size='lg'
             >
               {isProcessing || isLoading ? (
                 <>
                   <Loader2 className='w-4 h-4 mr-2 animate-spin' />
                   Memproses...
+                </>
+              ) : !process.env.REACT_APP_VAPID_PUBLIC_KEY ? (
+                <>
+                  <XCircle className='w-4 h-4 mr-2' />
+                  VAPID Key Belum Di-set
                 </>
               ) : (
                 <>
@@ -200,14 +228,6 @@ const PushNotificationSettings = () => {
           )}
         </div>
 
-        {/* Info */}
-        <Alert>
-          <AlertDescription className='text-sm'>
-            <strong>Catatan:</strong> Notifikasi push memerlukan koneksi
-            internet dan hanya bekerja saat aplikasi diinstall sebagai PWA.
-            Pastikan browser mendukung Service Worker dan Push API.
-          </AlertDescription>
-        </Alert>
       </CardContent>
     </Card>
   );

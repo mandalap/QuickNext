@@ -27,9 +27,12 @@ class SubscriptionController extends Controller
 
     /**
      * Get all available subscription plans with their prices
+     * Public endpoint - no authentication required (for landing page)
      */
     public function getPlans()
     {
+        // ✅ FIX: No caching to ensure fresh data from Filament
+        // This ensures changes in Filament admin panel are immediately reflected
         $plans = SubscriptionPlan::with(['prices' => function ($query) {
             $query->where('is_active', true)->orderBy('duration_months');
         }])

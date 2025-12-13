@@ -135,8 +135,46 @@ class KitchenController extends Controller
             return response()->json(['error' => 'No access to this order'], 403);
         }
 
+        $previousStatus = $order->status;
         $order->status = $request->status;
         $order->save();
+
+        // ✅ SECURITY: Send notification when order status changes
+        try {
+            $roleTargets = ['kasir', 'owner', 'admin']; // Always notify these roles
+            
+            // Add waiter if dine_in order
+            if ($order->type === 'dine_in') {
+                $roleTargets[] = 'waiter';
+            }
+
+            $statusMessages = [
+                'confirmed' => 'telah dikonfirmasi dan sedang dipersiapkan',
+                'preparing' => 'sedang dipersiapkan',
+                'ready' => 'sudah siap untuk diantar',
+                'completed' => 'telah selesai',
+            ];
+
+            \App\Models\AppNotification::create([
+                'business_id' => $order->business_id,
+                'outlet_id' => $order->outlet_id,
+                'user_id' => null,
+                'role_targets' => array_unique($roleTargets),
+                'type' => 'order.status_changed',
+                'title' => 'Status Order Diubah: ' . $order->order_number,
+                'message' => "Order #{$order->order_number} " . ($statusMessages[$request->status] ?? 'status berubah'),
+                'severity' => 'info',
+                'resource_type' => 'order',
+                'resource_id' => $order->id,
+                'meta' => [
+                    'order_number' => $order->order_number,
+                    'status' => $request->status,
+                    'previous_status' => $previousStatus,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            \Log::warning('KitchenController: Failed to create status change notification', ['error' => $e->getMessage()]);
+        }
 
         // Reload with relationships
         $order->load(['orderItems.product', 'table', 'customer']);
@@ -175,6 +213,34 @@ class KitchenController extends Controller
         }
 
         $order->status = 'confirmed';
+        
+        // ✅ SECURITY: Send notification when order status changes
+        try {
+            $roleTargets = ['waiter', 'kasir', 'owner', 'admin']; // Notify relevant roles
+            if ($order->type === 'dine_in') {
+                $roleTargets[] = 'waiter'; // Waiter needs to know when order is confirmed
+            }
+
+            \App\Models\AppNotification::create([
+                'business_id' => $order->business_id,
+                'outlet_id' => $order->outlet_id,
+                'user_id' => null,
+                'role_targets' => array_unique($roleTargets),
+                'type' => 'order.status_changed',
+                'title' => 'Order Dikonfirmasi: ' . $order->order_number,
+                'message' => "Order #{$order->order_number} telah dikonfirmasi dan sedang dipersiapkan.",
+                'severity' => 'info',
+                'resource_type' => 'order',
+                'resource_id' => $order->id,
+                'meta' => [
+                    'order_number' => $order->order_number,
+                    'status' => 'confirmed',
+                    'previous_status' => $request->input('previous_status', 'pending'),
+                ],
+            ]);
+        } catch (\Exception $e) {
+            \Log::warning('KitchenController: Failed to create status change notification', ['error' => $e->getMessage()]);
+        }
         $order->save();
 
         // Reload with relationships
