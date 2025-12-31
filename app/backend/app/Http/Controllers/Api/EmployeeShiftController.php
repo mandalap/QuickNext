@@ -61,7 +61,7 @@ class EmployeeShiftController extends Controller
     private function validateLocation($outletId, $latitude, $longitude)
     {
         $outlet = Outlet::find($outletId);
-        
+
         if (!$outlet) {
             return [
                 'valid' => false,
@@ -139,13 +139,13 @@ class EmployeeShiftController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
-        
+
         // ✅ FIX: Check attendance access
         $accessCheck = $this->checkAttendanceAccess($user);
         if ($accessCheck) {
             return $accessCheck;
         }
-        
+
         try {
             $startTime = microtime(true);
             $businessId = $request->header('X-Business-Id');
@@ -192,12 +192,12 @@ class EmployeeShiftController extends Controller
                 // ✅ OPTIMIZATION: Limit date range to prevent huge queries
                 $startDate = Carbon::parse($request->start_date);
                 $endDate = Carbon::parse($request->end_date);
-                
+
                 // Limit to max 7 days for history (since frontend requests last 7 days)
                 if ($endDate->diffInDays($startDate) > 7) {
                     $endDate = $startDate->copy()->addDays(7);
                 }
-                
+
                 $query->whereBetween('shift_date', [
                     $startDate->format('Y-m-d'),
                     $endDate->format('Y-m-d')
@@ -257,13 +257,13 @@ class EmployeeShiftController extends Controller
     public function clockIn(Request $request)
     {
         $user = Auth::user();
-        
+
         // ✅ FIX: Check attendance access
         $accessCheck = $this->checkAttendanceAccess($user);
         if ($accessCheck) {
             return $accessCheck;
         }
-        
+
         try {
             $businessId = $request->header('X-Business-Id');
             $outletId = $request->header('X-Outlet-Id');
@@ -294,7 +294,7 @@ class EmployeeShiftController extends Controller
             $outlet = Outlet::where('id', $outletId)
                 ->where('business_id', $businessId)
                 ->first();
-            
+
             if (!$outlet) {
                 return response()->json([
                     'success' => false,
@@ -313,18 +313,18 @@ class EmployeeShiftController extends Controller
                         // Custom validation to support overnight shifts
                         $startTime = $request->start_time;
                         $endTime = $value;
-                        
+
                         if (!$startTime || !$endTime) {
                             return;
                         }
-                        
+
                         // Parse times
                         list($startHour, $startMin) = explode(':', $startTime);
                         list($endHour, $endMin) = explode(':', $endTime);
-                        
+
                         $startMinutes = (int)$startHour * 60 + (int)$startMin;
                         $endMinutes = (int)$endHour * 60 + (int)$endMin;
-                        
+
                         // If end time is earlier than start time, it's an overnight shift (next day)
                         // This is valid (e.g., 20:00 - 05:00)
                         // Only fail if end time equals start time
@@ -385,18 +385,18 @@ class EmployeeShiftController extends Controller
                 // Check if shift is still active based on end_time
                 $shiftDate = Carbon::parse($shift->shift_date);
                 $endTime = Carbon::parse($shiftDate->format('Y-m-d') . ' ' . $shift->end_time);
-                
+
                 // If end_time is earlier than start_time, it's an overnight shift (next day)
                 $startTime = Carbon::parse($shiftDate->format('Y-m-d') . ' ' . $shift->start_time);
                 if ($endTime->lt($startTime)) {
                     $endTime->addDay(); // Add one day for overnight shifts
                 }
-                
+
                 // ✅ AUTO-CHECKOUT: If shift end_time has passed, automatically checkout
                 if ($now->gte($endTime)) {
                     // Auto-checkout this shift
                     $clockOutTime = $endTime->format('H:i:s');
-                    
+
                     // Calculate working hours
                     $clockIn = Carbon::parse($shiftDate->format('Y-m-d') . ' ' . $shift->clock_in);
                     $clockOut = Carbon::parse($shiftDate->format('Y-m-d') . ' ' . $clockOutTime);
@@ -404,14 +404,14 @@ class EmployeeShiftController extends Controller
                         $clockOut->addDay();
                     }
                     $workingHours = $clockIn->diffInMinutes($clockOut) / 60;
-                    
+
                     $shift->update([
                         'clock_out' => $clockOutTime,
                         'clock_out_latitude' => $shift->clock_in_latitude, // Use same location as clock in
                         'clock_out_longitude' => $shift->clock_in_longitude,
                         'status' => 'completed',
                     ]);
-                    
+
                     Log::info('Auto-checkout shift', [
                         'shift_id' => $shift->id,
                         'user_id' => $user->id,
@@ -446,18 +446,18 @@ class EmployeeShiftController extends Controller
             if ($existingShift) {
                 // Update existing shift
                 $clockInTime = now()->format('H:i:s');
-                
+
                 // ✅ AUTO-CHECKOUT: If shift already has clock_in but no clock_out, and end_time has passed, auto-checkout first
                 if ($existingShift->clock_in && !$existingShift->clock_out) {
                     $shiftDate = Carbon::parse($existingShift->shift_date);
                     $endTime = Carbon::parse($shiftDate->format('Y-m-d') . ' ' . $existingShift->end_time);
                     $startTime = Carbon::parse($shiftDate->format('Y-m-d') . ' ' . $existingShift->start_time);
-                    
+
                     // Handle overnight shifts
                     if ($endTime->lt($startTime)) {
                         $endTime->addDay();
                     }
-                    
+
                     // If end_time has passed, auto-checkout
                     if ($now->gte($endTime)) {
                         $clockOutTime = $endTime->format('H:i:s');
@@ -467,12 +467,12 @@ class EmployeeShiftController extends Controller
                             'clock_out_longitude' => $existingShift->clock_in_longitude,
                             'status' => 'completed',
                         ]);
-                        
+
                         Log::info('Auto-checkout existing shift before new clock-in', [
                             'shift_id' => $existingShift->id,
                             'user_id' => $user->id,
                         ]);
-                        
+
                         // Continue to create new clock-in for this shift (will create new shift record)
                     } else {
                         // Shift is still active, cannot clock in again
@@ -519,7 +519,7 @@ class EmployeeShiftController extends Controller
                     $shift = $existingShift->fresh();
                 }
             }
-            
+
             // ✅ FIX: Create new shift if no existing shift, or existing shift is completed
             if (!isset($shift) || !$shift) {
                 // Create new shift
@@ -541,7 +541,7 @@ class EmployeeShiftController extends Controller
                     'status' => $isLate ? 'late' : 'ongoing',
                     'notes' => $request->notes,
                 ]);
-                
+
                 // ✅ NEW: Save clock in photo if provided
                 if ($request->has('clock_in_photo')) {
                     $photoPath = $this->savePhoto($request->clock_in_photo, 'attendance');
@@ -582,7 +582,7 @@ class EmployeeShiftController extends Controller
     public function clockOut(Request $request, $shiftId)
     {
         $user = Auth::user();
-        
+
         // ✅ FIX: Check attendance access
         $accessCheck = $this->checkAttendanceAccess($user);
         if ($accessCheck) {
@@ -618,7 +618,7 @@ class EmployeeShiftController extends Controller
             $outlet = Outlet::where('id', $outletId)
                 ->where('business_id', $businessId)
                 ->first();
-            
+
             if (!$outlet) {
                 return response()->json([
                     'success' => false,
@@ -695,10 +695,10 @@ class EmployeeShiftController extends Controller
             DB::beginTransaction();
 
             $clockOutTime = now()->format('H:i:s');
-            
+
             // Calculate working hours - handle overnight shifts
             $clockInTime = $shift->clock_in;
-            
+
             // Ensure clock_in is in string format (H:i:s)
             if ($clockInTime instanceof \DateTime || $clockInTime instanceof \Carbon\Carbon) {
                 $clockInTime = $clockInTime->format('H:i:s');
@@ -706,14 +706,14 @@ class EmployeeShiftController extends Controller
                 // If already string, ensure it's in H:i:s format
                 $parts = explode(':', $clockInTime);
                 if (count($parts) >= 2) {
-                    $clockInTime = sprintf('%02d:%02d:%02d', 
-                        (int)$parts[0], 
-                        (int)$parts[1], 
+                    $clockInTime = sprintf('%02d:%02d:%02d',
+                        (int)$parts[0],
+                        (int)$parts[1],
                         isset($parts[2]) ? (int)$parts[2] : 0
                     );
                 }
             }
-            
+
             // Parse dates for calculation
             // Ensure shift_date is in date format (Y-m-d) only
             $shiftDate = $shift->shift_date;
@@ -733,16 +733,16 @@ class EmployeeShiftController extends Controller
                     Log::warning('Failed to parse shift_date: ' . $shiftDate);
                 }
             }
-            
+
             // Parse clock in and clock out times
             $clockIn = Carbon::parse($shiftDate . ' ' . $clockInTime);
             $clockOut = Carbon::parse($shiftDate . ' ' . $clockOutTime);
-            
+
             // If clock out time is earlier than clock in time, it's next day (overnight shift)
             if ($clockOut->lt($clockIn)) {
                 $clockOut->addDay();
             }
-            
+
             $workingHours = $clockIn->diffInMinutes($clockOut) / 60;
 
             // Update notes if provided
@@ -803,7 +803,7 @@ class EmployeeShiftController extends Controller
     public function getTodayShift(Request $request)
     {
         $user = Auth::user();
-        
+
         // ✅ FIX: Check attendance access
         $accessCheck = $this->checkAttendanceAccess($user);
         if ($accessCheck) {
@@ -870,13 +870,13 @@ class EmployeeShiftController extends Controller
                 foreach ($yesterdayShifts as $shift) {
                     $shiftDate = Carbon::parse($shift->shift_date);
                     $endTime = Carbon::parse($shiftDate->format('Y-m-d') . ' ' . $shift->end_time);
-                    
+
                     // If end_time is earlier than start_time, it's an overnight shift (next day)
                     $startTime = Carbon::parse($shiftDate->format('Y-m-d') . ' ' . $shift->start_time);
                     if ($endTime->lt($startTime)) {
                         $endTime->addDay(); // Add one day for overnight shifts
                     }
-                    
+
                     // Shift is still active if current time is before end_time
                     if ($now->lt($endTime)) {
                         $todayShift = $shift;
@@ -925,7 +925,7 @@ class EmployeeShiftController extends Controller
                 // Handle overnight shifts (end_time < start_time means next day)
                 $startTime = $shift->start_time;
                 $shiftEndDateTime = Carbon::parse($shiftDate . ' ' . $endTime);
-                
+
                 // If end_time is earlier than start_time, it's next day
                 if ($startTime && Carbon::parse($shiftDate . ' ' . $startTime)->gt($shiftEndDateTime)) {
                     $shiftEndDateTime->addDay();
@@ -951,6 +951,19 @@ class EmployeeShiftController extends Controller
         $absentCount = 0;
 
         try {
+            // ✅ FIX: Limit calculation to max 30 days to prevent huge numbers
+            $daysDiff = Carbon::parse($endDate)->diffInDays(Carbon::parse($startDate));
+            if ($daysDiff > 30) {
+                // For periods longer than 30 days, only calculate for last 30 days
+                // This prevents unrealistic absent counts (e.g., 365 days × employees)
+                Log::info('Period too long for absent calculation, limiting to last 30 days', [
+                    'start_date' => $startDate,
+                    'end_date' => $endDate,
+                    'days_diff' => $daysDiff
+                ]);
+                $startDate = Carbon::parse($endDate)->subDays(30)->format('Y-m-d');
+            }
+
             // Get active employees for this business/outlet
             $employeeQuery = Employee::where('business_id', $businessId)
                 ->where('is_active', true)
@@ -962,7 +975,7 @@ class EmployeeShiftController extends Controller
                     ->where('outlet_id', $outletId)
                     ->pluck('user_id')
                     ->toArray();
-                
+
                 if (!empty($outletEmployeeIds)) {
                     $employeeQuery->whereIn('user_id', $outletEmployeeIds);
                 } else {
@@ -985,7 +998,7 @@ class EmployeeShiftController extends Controller
             // Get outlet shift times (default shift end times)
             $outlet = $outletId ? \App\Models\Outlet::find($outletId) : null;
             $defaultShiftEnds = [];
-            
+
             if ($outlet) {
                 // Get all shift end times from outlet config
                 if ($outlet->shift_pagi_end) {
@@ -998,19 +1011,24 @@ class EmployeeShiftController extends Controller
                     $defaultShiftEnds[] = $outlet->shift_malam_end;
                 }
             }
-            
+
             // Default to 17:00 if no shift config
             if (empty($defaultShiftEnds)) {
                 $defaultShiftEnds = ['17:00:00'];
             }
 
-            // Get all dates in range
+            // ✅ FIX: Only count weekdays (Monday-Friday) to avoid counting weekends
+            // This is more realistic as most businesses don't operate on weekends
             $start = Carbon::parse($startDate);
             $end = Carbon::parse($endDate);
             $dates = [];
-            
+
             while ($start->lte($end)) {
-                $dates[] = $start->copy()->format('Y-m-d');
+                // Only count weekdays (1 = Monday, 5 = Friday)
+                $dayOfWeek = $start->dayOfWeek;
+                if ($dayOfWeek >= 1 && $dayOfWeek <= 5) {
+                    $dates[] = $start->copy()->format('Y-m-d');
+                }
                 $start->addDay();
             }
 
@@ -1070,7 +1088,7 @@ class EmployeeShiftController extends Controller
     public function getAttendanceStats(Request $request)
     {
         $user = Auth::user();
-        
+
         // ✅ FIX: Check attendance access
         $accessCheck = $this->checkAttendanceAccess($user);
         if ($accessCheck) {
@@ -1130,26 +1148,26 @@ class EmployeeShiftController extends Controller
             // Clone query for each count to avoid query builder state issues
             $baseQuery = clone $query;
             $totalShifts = $baseQuery->count();
-            
+
             $baseQuery = clone $query;
             $completed = $baseQuery->where('status', 'completed')->count();
-            
+
             $baseQuery = clone $query;
             $ongoing = $baseQuery->where('status', 'ongoing')->count();
-            
+
             $baseQuery = clone $query;
             $late = $baseQuery->where('status', 'late')->count();
-            
+
             $baseQuery = clone $query;
             $absentFromShifts = $baseQuery->where('status', 'absent')->count();
-            
+
             $baseQuery = clone $query;
             $present = $baseQuery->whereNotNull('clock_in')->count();
-            
+
             // ✅ OPTIMIZATION: Skip calculateAbsentWithoutShift for better performance
             // This is expensive and can be calculated separately if needed
             $absentWithoutShift = 0;
-            
+
             $absent = $absentFromShifts + $absentWithoutShift;
 
             $stats = [
@@ -1190,7 +1208,7 @@ class EmployeeShiftController extends Controller
     public function getAttendanceReport(Request $request)
     {
         $user = Auth::user();
-        
+
         // ✅ FIX: Check attendance access
         $accessCheck = $this->checkAttendanceAccess($user);
         if ($accessCheck) {
@@ -1235,7 +1253,7 @@ class EmployeeShiftController extends Controller
             // Overall statistics
             $now = now();
             $baseQueryClone = clone $baseQuery;
-            
+
             // Absent from shifts (existing shifts)
             $absentFromShifts = (clone $baseQueryClone)->where(function($q) use ($now) {
                 $q->where('status', 'absent')
@@ -1244,16 +1262,68 @@ class EmployeeShiftController extends Controller
                          ->whereRaw('CONCAT(shift_date, " ", end_time) < ?', [$now->format('Y-m-d H:i:s')]);
                   });
             })->count();
-            
+
             // Absent employees who never clocked in (no shift record at all)
             $absentWithoutShift = $this->calculateAbsentWithoutShift(
-                $businessId, 
-                $outletId, 
-                $startDate, 
-                $endDate, 
+                $businessId,
+                $outletId,
+                $startDate,
+                $endDate,
                 $userFilter
             );
-            
+
+            // ✅ NEW: Calculate total working hours
+            $totalWorkingHours = 0;
+            $shiftsWithHours = (clone $baseQueryClone)
+                ->whereNotNull('clock_in')
+                ->whereNotNull('clock_out')
+                ->get();
+
+            foreach ($shiftsWithHours as $shift) {
+                try {
+                    // ✅ FIX: Ensure shift_date is only date (Y-m-d), not datetime
+                    $shiftDate = $shift->shift_date instanceof Carbon
+                        ? $shift->shift_date->format('Y-m-d')
+                        : (is_string($shift->shift_date)
+                            ? (strpos($shift->shift_date, ' ') !== false
+                                ? explode(' ', $shift->shift_date)[0]
+                                : $shift->shift_date)
+                            : Carbon::parse($shift->shift_date)->format('Y-m-d'));
+
+                    // ✅ FIX: Ensure clock_in is only time (H:i:s), not datetime
+                    $clockInTime = is_string($shift->clock_in)
+                        ? (strpos($shift->clock_in, ' ') !== false
+                            ? explode(' ', $shift->clock_in)[1] ?? $shift->clock_in
+                            : $shift->clock_in)
+                        : (string)$shift->clock_in;
+
+                    // ✅ FIX: Ensure clock_out is only time (H:i:s), not datetime
+                    $clockOutTime = is_string($shift->clock_out)
+                        ? (strpos($shift->clock_out, ' ') !== false
+                            ? explode(' ', $shift->clock_out)[1] ?? $shift->clock_out
+                            : $shift->clock_out)
+                        : (string)$shift->clock_out;
+
+                    $clockIn = Carbon::parse($shiftDate . ' ' . $clockInTime);
+                    $clockOut = Carbon::parse($shiftDate . ' ' . $clockOutTime);
+
+                    // Handle overnight shifts
+                    if ($clockOut->lt($clockIn)) {
+                        $clockOut->addDay();
+                    }
+
+                    $hours = $clockIn->diffInMinutes($clockOut) / 60;
+                    $totalWorkingHours += $hours;
+                } catch (\Exception $e) {
+                    Log::warning('Error calculating hours for shift ' . $shift->id . ': ' . $e->getMessage(), [
+                        'shift_date' => $shift->shift_date ?? 'null',
+                        'clock_in' => $shift->clock_in ?? 'null',
+                        'clock_out' => $shift->clock_out ?? 'null',
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
             $stats = [
                 'total_shifts' => $baseQueryClone->count(),
                 'completed' => (clone $baseQueryClone)->where('status', 'completed')->count(),
@@ -1263,12 +1333,13 @@ class EmployeeShiftController extends Controller
                 'absent_from_shifts' => $absentFromShifts,
                 'absent_without_shift' => $absentWithoutShift,
                 'present' => (clone $baseQueryClone)->whereNotNull('clock_in')->count(),
+                'total_working_hours' => round($totalWorkingHours, 2), // ✅ NEW: Total working hours
             ];
 
             // Daily trends - calculate with proper absent logic
             $nowFormatted = $now->format('Y-m-d H:i:s');
             $dailyTrends = (clone $baseQuery)
-                ->selectRaw('DATE(shift_date) as date, COUNT(*) as total, 
+                ->selectRaw('DATE(shift_date) as date, COUNT(*) as total,
                     SUM(CASE WHEN status = "completed" THEN 1 ELSE 0 END) as completed,
                     SUM(CASE WHEN status = "late" THEN 1 ELSE 0 END) as late,
                     SUM(CASE WHEN status = "absent" OR (clock_in IS NULL AND CONCAT(shift_date, " ", end_time) < ?) THEN 1 ELSE 0 END) as absent',
@@ -1295,8 +1366,16 @@ class EmployeeShiftController extends Controller
                 ['name' => 'Tidak Hadir', 'value' => $stats['absent'], 'color' => '#ef4444'],
             ];
 
-            // Employee performance (top employees by attendance)
-            $employeePerformance = (clone $baseQuery)
+            // Employee performance (all employees by attendance)
+            // ✅ NEW: Get limit from request, default to null (show all) or 10
+            $limit = $request->input('employee_limit', null);
+            if ($limit === 'all' || $limit === null) {
+                $limit = null; // Show all employees
+            } else {
+                $limit = (int)$limit ?: 10; // Default to 10 if invalid
+            }
+
+            $employeeQuery = (clone $baseQuery)
                 ->selectRaw('user_id, COUNT(*) as total_shifts,
                     SUM(CASE WHEN status = "completed" THEN 1 ELSE 0 END) as completed,
                     SUM(CASE WHEN status = "late" THEN 1 ELSE 0 END) as late,
@@ -1304,10 +1383,133 @@ class EmployeeShiftController extends Controller
                     [$nowFormatted])
                 ->with('user:id,name,email')
                 ->groupBy('user_id')
-                ->orderByDesc('total_shifts')
-                ->limit(10)
-                ->get()
-                ->map(function ($item) {
+                ->orderByDesc('total_shifts');
+
+            if ($limit !== null) {
+                $employeeQuery->limit($limit);
+            }
+
+            // ✅ OPTIMIZATION: Get all shifts with hours calculation in one query
+            // Use fresh query to ensure we get all shifts with clock_in and clock_out
+            $shiftsWithHoursQuery = EmployeeShift::where('business_id', $businessId)
+                ->whereBetween('shift_date', [$startDate, $endDate])
+                ->whereNotNull('clock_in')
+                ->whereNotNull('clock_out');
+
+            if ($outletId) {
+                $shiftsWithHoursQuery->where('outlet_id', $outletId);
+            }
+
+            if ($userFilter) {
+                $shiftsWithHoursQuery->where('user_id', $userFilter);
+            }
+
+            $shiftsWithHours = $shiftsWithHoursQuery->get()->groupBy('user_id');
+
+            // ✅ DEBUG: Log shifts with hours for debugging
+            $totalShiftsWithHours = $shiftsWithHoursQuery->count();
+            Log::info('Shifts with hours calculation', [
+                'business_id' => $businessId,
+                'outlet_id' => $outletId,
+                'start_date' => $startDate,
+                'end_date' => $endDate,
+                'total_shifts_with_hours' => $totalShiftsWithHours,
+                'grouped_by_user_count' => $shiftsWithHours->count(),
+                'user_ids' => $shiftsWithHours->keys()->toArray(),
+            ]);
+
+            // ✅ DEBUG: Log sample shifts to verify data
+            if ($totalShiftsWithHours > 0) {
+                $sampleShift = $shiftsWithHoursQuery->first();
+                Log::info('Sample shift with hours', [
+                    'shift_id' => $sampleShift->id,
+                    'user_id' => $sampleShift->user_id,
+                    'shift_date' => $sampleShift->shift_date,
+                    'clock_in' => $sampleShift->clock_in,
+                    'clock_out' => $sampleShift->clock_out,
+                ]);
+            } else {
+                Log::warning('No shifts found with both clock_in and clock_out', [
+                    'business_id' => $businessId,
+                    'outlet_id' => $outletId,
+                    'date_range' => [$startDate, $endDate],
+                ]);
+            }
+
+            $employeePerformance = $employeeQuery->get()
+                ->map(function ($item) use ($shiftsWithHours, $startDate, $endDate) {
+                    // ✅ NEW: Calculate total working hours for this employee from grouped data
+                    $totalWorkingHours = 0;
+                    $employeeShifts = $shiftsWithHours->get($item->user_id, collect());
+
+                    // ✅ DEBUG: Log for this employee
+                    if ($employeeShifts->isEmpty()) {
+                        Log::debug('No shifts with hours for user', [
+                            'user_id' => $item->user_id,
+                            'user_name' => $item->user_name,
+                        ]);
+                    } else {
+                        Log::debug('Found shifts with hours for user', [
+                            'user_id' => $item->user_id,
+                            'user_name' => $item->user_name,
+                            'shifts_count' => $employeeShifts->count(),
+                        ]);
+                    }
+
+                    foreach ($employeeShifts as $shift) {
+                        try {
+                            // ✅ FIX: Ensure shift_date is only date (Y-m-d), not datetime
+                            $shiftDate = $shift->shift_date instanceof Carbon
+                                ? $shift->shift_date->format('Y-m-d')
+                                : (is_string($shift->shift_date)
+                                    ? (strpos($shift->shift_date, ' ') !== false
+                                        ? explode(' ', $shift->shift_date)[0]
+                                        : $shift->shift_date)
+                                    : Carbon::parse($shift->shift_date)->format('Y-m-d'));
+
+                            // ✅ FIX: Ensure clock_in is only time (H:i:s), not datetime
+                            $clockInTime = is_string($shift->clock_in)
+                                ? (strpos($shift->clock_in, ' ') !== false
+                                    ? explode(' ', $shift->clock_in)[1] ?? $shift->clock_in
+                                    : $shift->clock_in)
+                                : (string)$shift->clock_in;
+
+                            // ✅ FIX: Ensure clock_out is only time (H:i:s), not datetime
+                            $clockOutTime = is_string($shift->clock_out)
+                                ? (strpos($shift->clock_out, ' ') !== false
+                                    ? explode(' ', $shift->clock_out)[1] ?? $shift->clock_out
+                                    : $shift->clock_out)
+                                : (string)$shift->clock_out;
+
+                            $clockIn = Carbon::parse($shiftDate . ' ' . $clockInTime);
+                            $clockOut = Carbon::parse($shiftDate . ' ' . $clockOutTime);
+
+                            // Handle overnight shifts
+                            if ($clockOut->lt($clockIn)) {
+                                $clockOut->addDay();
+                            }
+
+                            $hours = $clockIn->diffInMinutes($clockOut) / 60;
+                            $totalWorkingHours += $hours;
+
+                            Log::debug('Calculated hours for shift', [
+                                'shift_id' => $shift->id,
+                                'user_id' => $item->user_id,
+                                'shift_date' => $shiftDate,
+                                'clock_in' => $clockInTime,
+                                'clock_out' => $clockOutTime,
+                                'hours' => $hours,
+                            ]);
+                        } catch (\Exception $e) {
+                            Log::warning('Error calculating hours for shift ' . $shift->id . ': ' . $e->getMessage(), [
+                                'shift_date' => $shift->shift_date ?? 'null',
+                                'clock_in' => $shift->clock_in ?? 'null',
+                                'clock_out' => $shift->clock_out ?? 'null',
+                                'error' => $e->getMessage(),
+                            ]);
+                        }
+                    }
+
                     return [
                         'user_id' => $item->user_id,
                         'user_name' => $item->user->name ?? $item->user->email ?? 'Unknown',
@@ -1315,9 +1517,10 @@ class EmployeeShiftController extends Controller
                         'completed' => (int)$item->completed,
                         'late' => (int)$item->late,
                         'absent' => (int)$item->absent,
-                        'attendance_rate' => $item->total_shifts > 0 
+                        'attendance_rate' => $item->total_shifts > 0
                             ? round((($item->completed + $item->late) / $item->total_shifts) * 100, 2)
                             : 0,
+                        'total_working_hours' => round($totalWorkingHours, 2), // ✅ NEW: Total working hours per employee
                     ];
                 });
 
@@ -1362,7 +1565,7 @@ class EmployeeShiftController extends Controller
     public function registerFace(Request $request)
     {
         $user = Auth::user();
-        
+
         // Check face recognition access
         $accessCheck = $this->checkFaceAccess($user);
         if ($accessCheck) {
@@ -1412,7 +1615,7 @@ class EmployeeShiftController extends Controller
     public function verifyFace(Request $request)
     {
         $user = Auth::user();
-        
+
         // Check face recognition access
         $accessCheck = $this->checkFaceAccess($user);
         if ($accessCheck) {

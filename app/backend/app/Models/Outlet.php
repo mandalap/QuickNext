@@ -18,7 +18,8 @@ class Outlet extends Model
         'latitude', 'longitude', 'attendance_radius', 'attendance_face_id_required', 'attendance_gps_required',
         'shift_pagi_start', 'shift_pagi_end',
         'shift_siang_start', 'shift_siang_end',
-        'shift_malam_start', 'shift_malam_end'
+        'shift_malam_start', 'shift_malam_end',
+        'working_days'
     ];
 
     protected $casts = [
@@ -33,6 +34,7 @@ class Outlet extends Model
         'latitude' => 'decimal:8',
         'longitude' => 'decimal:8',
         'attendance_radius' => 'integer',
+        'working_days' => 'array', // ✅ NEW: Array of working days (1=Monday, 2=Tuesday, ..., 0=Sunday)
     ];
 
     public function business()

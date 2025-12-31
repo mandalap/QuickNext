@@ -59,7 +59,7 @@ export const metadata = {
     description: 'Solusi POS modern untuk UMKM dan bisnis multi-outlet. Kelola bisnis lebih mudah dengan QuickKasir. Fitur lengkap, cepat, dan harga terjangkau.',
     images: [
       {
-        url: `${baseUrl}/og-image.jpg`, // You should create this image
+        url: `${baseUrl}/logo-qk.png`, // Using logo as OG image
         width: 1200,
         height: 630,
         alt: 'QuickKasir POS Dashboard',
@@ -70,15 +70,16 @@ export const metadata = {
     card: 'summary_large_image',
     title: 'QuickKasir - Aplikasi Kasir Modern Berbasis Cloud',
     description: 'Solusi POS modern untuk UMKM dan bisnis multi-outlet. Kelola bisnis lebih mudah dengan QuickKasir.',
-    images: [`${baseUrl}/og-image.jpg`],
+    images: [`${baseUrl}/logo-qk.png`],
     creator: '@quickkasir',
   },
   alternates: {
     canonical: baseUrl,
   },
   icons: {
-    icon: '/favicon.ico',
-    apple: '/apple-touch-icon.png',
+    icon: '/logo-qk.png',
+    apple: '/logo-qk.png',
+    shortcut: '/logo-qk.png',
   },
   verification: {
     // Add your verification codes here when available
@@ -104,7 +105,7 @@ export default function RootLayout({ children }) {
               url: baseUrl,
               offers: {
                 '@type': 'Offer',
-                price: '199000',
+                price: '1500',
                 priceCurrency: 'IDR',
                 priceValidUntil: '2025-12-31',
                 availability: 'https://schema.org/InStock',
@@ -112,8 +113,8 @@ export default function RootLayout({ children }) {
               },
               aggregateRating: {
                 '@type': 'AggregateRating',
-                ratingValue: '4.9',
-                ratingCount: '10000',
+                ratingValue: '4.8',
+                ratingCount: '1500',
                 bestRating: '5',
                 worstRating: '1'
               },
@@ -126,7 +127,7 @@ export default function RootLayout({ children }) {
                 'Mobile POS',
                 'Payment Integration'
               ],
-              screenshot: `${baseUrl}/screenshot.jpg`,
+              screenshot: `${baseUrl}/logo-qk.png`,
               softwareVersion: '1.0',
               releaseNotes: 'Initial release of QuickKasir POS System'
             })

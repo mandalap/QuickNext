@@ -19,11 +19,11 @@ import {
   DialogTitle,
 } from '../ui/dialog';
 
-const PayrollDetailModal = ({ isOpen, onClose, payroll, canManage, onUpdate }) => {
+const PayrollDetailModal = ({ isOpen, onClose, payroll, canManage, onUpdate, initialEditMode = false }) => {
   const { currentBusiness } = useAuth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(initialEditMode);
   const [formData, setFormData] = useState({
     bonus: 0,
     allowance: 0,
@@ -42,9 +42,9 @@ const PayrollDetailModal = ({ isOpen, onClose, payroll, canManage, onUpdate }) =
         notes: payroll.notes || '',
         status: payroll.status || 'draft',
       });
-      setIsEditing(false);
+      setIsEditing(initialEditMode);
     }
-  }, [payroll]);
+  }, [payroll, initialEditMode]);
 
   // Update mutation
   const updateMutation = useMutation({

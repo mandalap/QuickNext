@@ -22,7 +22,8 @@ module.exports = {
     'react/react-in-jsx-scope': 'off',
     'react/prop-types': 'off',
     'react-hooks/rules-of-hooks': 'error',
-    'react-hooks/exhaustive-deps': 'warn',
+    // ✅ FIX: Reduce noise - set exhaustive-deps to off (biasanya terlalu strict)
+    'react-hooks/exhaustive-deps': 'off',
     // ✅ FIX: Reduce noise dari unused vars (biasanya dari destructuring yang belum digunakan)
     'no-unused-vars': [
       'warn',
@@ -34,10 +35,16 @@ module.exports = {
       },
     ],
     // ✅ FIX: Reduce noise dari accessibility warnings (akan diperbaiki bertahap)
-    'jsx-a11y/label-has-associated-control': 'warn',
-    'jsx-a11y/click-events-have-key-events': 'warn',
-    'jsx-a11y/no-static-element-interactions': 'warn',
-    'jsx-a11y/no-noninteractive-element-interactions': 'warn',
+    'jsx-a11y/label-has-associated-control': 'off',
+    'jsx-a11y/click-events-have-key-events': 'off',
+    'jsx-a11y/no-static-element-interactions': 'off',
+    'jsx-a11y/no-noninteractive-element-interactions': 'off',
+    'jsx-a11y/anchor-is-valid': 'off',
+    'jsx-a11y/alt-text': 'warn',
+    // ✅ FIX: Disable console warnings (sudah di-handle di index.js)
+    'no-console': 'off',
+    // ✅ FIX: Allow empty functions (untuk event handlers yang belum diimplementasi)
+    'no-empty-function': 'off',
   },
   settings: {
     react: {

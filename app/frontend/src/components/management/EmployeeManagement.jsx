@@ -398,8 +398,38 @@ const EmployeeManagement = () => {
     setLocationError(null);
 
     try {
+      // ✅ NEW: Check if GPS is required for this outlet
+      const gpsRequired = currentOutlet?.attendance_gps_required ?? false;
+      
       // Get current location
-      const location = await attendanceService.getCurrentLocation();
+      let location;
+      try {
+        location = await attendanceService.getCurrentLocation({ timeout: 20000 });
+      } catch (locationError) {
+        // ✅ FIX: If GPS is required, reject clock in if GPS fails
+        if (gpsRequired) {
+          toast.error('⚠️ GPS wajib untuk absensi di outlet ini. Pastikan GPS aktif dan izinkan akses lokasi di pengaturan browser.');
+          setClockingIn(false);
+          return;
+        }
+        
+        // ✅ GPS is not required - use fallback
+        console.warn('⚠️ Failed to get GPS location, using outlet location as fallback:', locationError);
+        if (currentOutlet?.latitude && currentOutlet?.longitude) {
+          location = {
+            latitude: parseFloat(currentOutlet.latitude),
+            longitude: parseFloat(currentOutlet.longitude),
+          };
+          toast.warning('⚠️ Lokasi GPS tidak tersedia. Menggunakan lokasi outlet sebagai fallback. Absensi tetap dapat dilakukan.');
+        } else {
+          // If no outlet location, still allow clock in but warn user
+          location = {
+            latitude: null,
+            longitude: null,
+          };
+          toast.warning('⚠️ Lokasi GPS tidak tersedia. Absensi dilakukan tanpa validasi lokasi. Pastikan Anda berada di lokasi yang benar.');
+        }
+      }
       
       // Get current time for shift
       const now = new Date();
@@ -445,12 +475,39 @@ const EmployeeManagement = () => {
     setLocationError(null);
 
     try {
+      // ✅ NEW: Check if GPS is required for this outlet
+      const gpsRequired = currentOutlet?.attendance_gps_required ?? false;
+      
       // Get current location
-      const location = await attendanceService.getCurrentLocation();
+      let location;
+      try {
+        location = await attendanceService.getCurrentLocation({ timeout: 20000 });
+      } catch (locationError) {
+        // ✅ FIX: If GPS is required, reject clock out if GPS fails
+        if (gpsRequired) {
+          toast.error('⚠️ GPS wajib untuk absensi di outlet ini. Pastikan GPS aktif dan izinkan akses lokasi di pengaturan browser.');
+          setClockingOut(false);
+          return;
+        }
+        
+        // ✅ GPS is not required - use fallback
+        console.warn('⚠️ Failed to get GPS location for clock out, using outlet location as fallback:', locationError);
+        if (currentOutlet?.latitude && currentOutlet?.longitude) {
+          location = {
+            latitude: parseFloat(currentOutlet.latitude),
+            longitude: parseFloat(currentOutlet.longitude),
+          };
+        } else {
+          location = {
+            latitude: null,
+            longitude: null,
+          };
+        }
+      }
 
       const result = await attendanceService.clockOut(todayShift.id, {
-        latitude: location.latitude,
-        longitude: location.longitude,
+        latitude: location?.latitude || null,
+        longitude: location?.longitude || null,
       });
 
       if (result?.success) {

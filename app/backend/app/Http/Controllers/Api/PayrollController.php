@@ -55,12 +55,29 @@ class PayrollController extends Controller
             $query->where('employee_id', $request->employee_id);
         }
 
-        // Filter by year and month
-        if ($request->has('year')) {
-            $query->where('year', $request->year);
-        }
-        if ($request->has('month')) {
-            $query->where('month', $request->month);
+        // ✅ NEW: Filter by date range (more flexible) or fallback to year/month
+        if ($request->has('start_date') && $request->has('end_date')) {
+            // Use date range filter
+            $startDate = Carbon::parse($request->start_date)->startOfDay();
+            $endDate = Carbon::parse($request->end_date)->endOfDay();
+
+            // Filter by period_start and period_end
+            $query->where(function($q) use ($startDate, $endDate) {
+                $q->whereBetween('period_start', [$startDate, $endDate])
+                  ->orWhereBetween('period_end', [$startDate, $endDate])
+                  ->orWhere(function($q2) use ($startDate, $endDate) {
+                      $q2->where('period_start', '<=', $startDate)
+                         ->where('period_end', '>=', $endDate);
+                  });
+            });
+        } else {
+            // Fallback to year/month filter for backward compatibility
+            if ($request->has('year')) {
+                $query->where('year', $request->year);
+            }
+            if ($request->has('month')) {
+                $query->where('month', $request->month);
+            }
         }
 
         // Filter by status
@@ -423,8 +440,8 @@ class PayrollController extends Controller
             ], 404);
         }
 
-        // Only allow delete if status is draft or calculated
-        if (!in_array($payroll->status, ['draft', 'calculated'])) {
+        // Only allow delete if status is draft, calculated, or cancelled
+        if (!in_array($payroll->status, ['draft', 'calculated', 'cancelled'])) {
             return response()->json([
                 'success' => false,
                 'message' => 'Cannot delete payroll with status: ' . $payroll->status
@@ -445,13 +462,30 @@ class PayrollController extends Controller
     public function stats(Request $request)
     {
         $businessId = $request->header('X-Business-Id');
-        $year = $request->get('year', date('Y'));
-        $month = $request->get('month', date('m'));
 
-        // Base query
-        $baseQuery = Payroll::where('business_id', $businessId)
-            ->where('year', $year)
-            ->where('month', $month);
+        // ✅ NEW: Support date range or fallback to year/month
+        $baseQuery = Payroll::where('business_id', $businessId);
+
+        if ($request->has('start_date') && $request->has('end_date')) {
+            // Use date range filter
+            $startDate = Carbon::parse($request->start_date)->startOfDay();
+            $endDate = Carbon::parse($request->end_date)->endOfDay();
+
+            // Filter by period_start and period_end
+            $baseQuery->where(function($q) use ($startDate, $endDate) {
+                $q->whereBetween('period_start', [$startDate, $endDate])
+                  ->orWhereBetween('period_end', [$startDate, $endDate])
+                  ->orWhere(function($q2) use ($startDate, $endDate) {
+                      $q2->where('period_start', '<=', $startDate)
+                         ->where('period_end', '>=', $endDate);
+                  });
+            });
+        } else {
+            // Fallback to year/month filter for backward compatibility
+            $year = $request->get('year', date('Y'));
+            $month = $request->get('month', date('m'));
+            $baseQuery->where('year', $year)->where('month', $month);
+        }
 
         // Clone query for each aggregation to avoid query builder state issues
         $stats = [

@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Building2,
+  Calendar,
   Camera,
   CheckCircle,
   CreditCard,
@@ -277,6 +278,7 @@ const BusinessManagement = () => {
     shift_siang_end: '21:00',
     shift_malam_start: '20:00',
     shift_malam_end: '05:00',
+    working_days: [1, 2, 3, 4, 5], // Default: Senin-Jumat (1=Senin, 2=Selasa, ..., 0=Minggu)
   });
   const [businessFormData, setBusinessFormData] = useState({
     name: '',
@@ -331,7 +333,7 @@ const BusinessManagement = () => {
     return timeString || '';
   };
 
-  // ✅ NEW: Get current GPS location
+  // ✅ IMPROVED: Get current GPS location with retry, fallback, and watchPosition
   const handleGetCurrentLocation = () => {
     if (!navigator.geolocation) {
       toast.error('Geolocation tidak didukung oleh browser Anda');
@@ -339,26 +341,51 @@ const BusinessManagement = () => {
     }
 
     setLoadingLocation(true);
-    navigator.geolocation.getCurrentPosition(
-      position => {
-        const { latitude, longitude } = position.coords;
+    let watchId = null;
+    let timeoutId = null;
+    
+    // Helper to stop watching and cleanup
+    const cleanup = () => {
+      if (watchId !== null) {
+        navigator.geolocation.clearWatch(watchId);
+        watchId = null;
+      }
+      if (timeoutId !== null) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+    };
+
+    // Helper to set location and cleanup
+    const setLocation = (position) => {
+      cleanup();
+      const { latitude, longitude, accuracy } = position.coords;
         setFormData({
           ...formData,
           latitude: latitude.toFixed(8),
           longitude: longitude.toFixed(8),
         });
-        toast.success('✅ Lokasi GPS berhasil diambil!', { duration: 3000 });
+      
+      const accuracyMessage = accuracy 
+        ? ` (Akurasi: ±${Math.round(accuracy)}m)` 
+        : '';
+      toast.success(`✅ Lokasi GPS berhasil diambil!${accuracyMessage}`, { 
+        duration: 4000 
+      });
         setLoadingLocation(false);
-      },
-      error => {
+    };
+
+    // Helper to handle error
+    const handleError = (error, useWatchPosition = false) => {
         let errorMessage = 'Gagal mendapatkan lokasi GPS';
+      
         switch (error.code) {
           case error.PERMISSION_DENIED:
             errorMessage =
-              'Akses lokasi ditolak. Silakan izinkan akses lokasi di pengaturan browser.';
+            'Akses lokasi ditolak. Silakan izinkan akses lokasi di pengaturan browser, lalu coba lagi.';
             break;
           case error.POSITION_UNAVAILABLE:
-            errorMessage = 'Informasi lokasi tidak tersedia.';
+          errorMessage = 'Informasi lokasi tidak tersedia. Pastikan GPS aktif dan sinyal baik.';
             break;
           case error.TIMEOUT:
             errorMessage = 'Waktu permintaan lokasi habis.';
@@ -367,14 +394,92 @@ const BusinessManagement = () => {
             errorMessage = 'Terjadi kesalahan saat mendapatkan lokasi.';
             break;
         }
+
+      // If timeout and haven't tried watchPosition, try it
+      if (error.code === error.TIMEOUT && !useWatchPosition) {
+        toast.info('⏳ Mencoba metode alternatif (watchPosition)...', {
+          duration: 3000
+        });
+        
+        // Try watchPosition as fallback
+        const watchOptions = {
+          enableHighAccuracy: false, // Use lower accuracy for watchPosition
+          timeout: 30000, // 30 seconds
+          maximumAge: 60000, // Accept cache up to 1 minute
+        };
+
+        let watchTimeout = setTimeout(() => {
+          if (watchId !== null) {
+            navigator.geolocation.clearWatch(watchId);
+            watchId = null;
+          }
+          toast.error('⚠️ Waktu permintaan lokasi habis. Silakan coba lagi atau input manual.', { 
+            duration: 6000 
+          });
+          setLoadingLocation(false);
+        }, 30000);
+
+        watchId = navigator.geolocation.watchPosition(
+          (position) => {
+            clearTimeout(watchTimeout);
+            setLocation(position);
+          },
+          (watchError) => {
+            clearTimeout(watchTimeout);
+            cleanup();
         toast.error(`⚠️ ${errorMessage}`, { duration: 6000 });
         setLoadingLocation(false);
       },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0,
+          watchOptions
+        );
+        return;
       }
+
+      // All methods exhausted
+      cleanup();
+      toast.error(`⚠️ ${errorMessage}\n\n💡 Tips: Pastikan GPS aktif, izinkan akses lokasi, atau input koordinat secara manual.`, { 
+        duration: 8000 
+      });
+      setLoadingLocation(false);
+    };
+
+    // Strategy 1: Try getCurrentPosition with high accuracy (longer timeout)
+    const optionsHigh = {
+        enableHighAccuracy: true,
+      timeout: 30000, // 30 seconds (increased from 20)
+        maximumAge: 0,
+    };
+
+    navigator.geolocation.getCurrentPosition(
+      setLocation,
+      (error) => {
+        // If timeout, try with lower accuracy first
+        if (error.code === error.TIMEOUT) {
+          toast.info('⏳ Mencoba dengan akurasi lebih rendah...', {
+            duration: 3000
+          });
+          
+          // Strategy 2: Try getCurrentPosition with lower accuracy
+          const optionsLow = {
+            enableHighAccuracy: false,
+            timeout: 25000, // 25 seconds
+            maximumAge: 120000, // Accept cache up to 2 minutes
+          };
+
+          navigator.geolocation.getCurrentPosition(
+            setLocation,
+            (lowAccuracyError) => {
+              // If still timeout, try watchPosition
+              handleError(lowAccuracyError, false);
+            },
+            optionsLow
+          );
+        } else {
+          // For other errors, try watchPosition if it's a timeout-like issue
+          handleError(error, false);
+        }
+      },
+      optionsHigh
     );
   };
 
@@ -404,6 +509,7 @@ const BusinessManagement = () => {
         shift_malam_start:
           formatTimeForInput(outlet.shift_malam_start) || '20:00',
         shift_malam_end: formatTimeForInput(outlet.shift_malam_end) || '05:00',
+        working_days: outlet.working_days || [1, 2, 3, 4, 5], // Default: Senin-Jumat
       });
     } else {
       setSelectedOutlet(null);
@@ -426,6 +532,7 @@ const BusinessManagement = () => {
         shift_siang_end: '21:00',
         shift_malam_start: '20:00',
         shift_malam_end: '05:00',
+        working_days: [1, 2, 3, 4, 5], // Default: Senin-Jumat
       });
     }
     setErrors({});
@@ -1576,8 +1683,24 @@ const BusinessManagement = () => {
                   )}
                 </Button>
                 <p className='text-xs text-gray-500 mt-2'>
-                  Klik tombol di atas untuk mengambil koordinat GPS dari lokasi
-                  Anda saat ini
+                  Klik tombol di atas untuk mengambil koordinat GPS dari lokasi Anda saat ini.
+                  <br />
+                  <span className='text-orange-600 font-medium'>
+                    💡 Tips: Pastikan GPS aktif, izinkan akses lokasi di browser, dan gunakan di luar ruangan untuk hasil terbaik.
+                  </span>
+                  <br />
+                  <span className='text-blue-600'>
+                    Atau input manual: Buka{' '}
+                    <a 
+                      href='https://www.google.com/maps' 
+                      target='_blank' 
+                      rel='noopener noreferrer'
+                      className='underline hover:text-blue-800'
+                    >
+                      Google Maps
+                    </a>
+                    , klik kanan pada lokasi outlet, lalu copy koordinat.
+                  </span>
                 </p>
               </div>
 
@@ -1866,50 +1989,64 @@ const BusinessManagement = () => {
               </div>
             </div>
 
-            <div>
-              <Label htmlFor='business_type_id'>Jenis Bisnis</Label>
-              {loadingTypes ? (
-                <div className='flex items-center justify-center py-2 border rounded-md'>
-                  <Loader2 className='w-4 h-4 animate-spin text-gray-400 mr-2' />
-                  <span className='text-sm text-gray-500'>
-                    Memuat jenis bisnis...
-                  </span>
+            {/* ✅ NEW: Working Days Configuration */}
+            <div className='space-y-4 border-t pt-4 mt-4'>
+              <div className='flex items-center gap-2 mb-2'>
+                <Calendar className='w-5 h-5 text-green-600' />
+                <h3 className='text-lg font-semibold'>Hari Kerja</h3>
                 </div>
-              ) : (
-                <Select
-                  value={formData.business_type_id || undefined}
-                  onValueChange={value => {
-                    // Convert empty string to null for clearing selection
-                    const businessTypeId = value === 'none' ? '' : value;
+              <p className='text-sm text-gray-600 mb-4'>
+                Pilih hari kerja untuk outlet ini. Gaji akan dihitung berdasarkan hari kerja yang ditentukan.
+              </p>
+              <div className='grid grid-cols-2 sm:grid-cols-4 gap-3'>
+                {[
+                  { value: 1, label: 'Senin', short: 'Sen' },
+                  { value: 2, label: 'Selasa', short: 'Sel' },
+                  { value: 3, label: 'Rabu', short: 'Rab' },
+                  { value: 4, label: 'Kamis', short: 'Kam' },
+                  { value: 5, label: 'Jumat', short: 'Jum' },
+                  { value: 6, label: 'Sabtu', short: 'Sab' },
+                  { value: 0, label: 'Minggu', short: 'Min' },
+                ].map(day => (
+                  <label
+                    key={day.value}
+                    className={`flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-colors ${
+                      formData.working_days?.includes(day.value)
+                        ? 'bg-green-50 border-green-300 text-green-900'
+                        : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    <input
+                      type='checkbox'
+                      checked={formData.working_days?.includes(day.value) || false}
+                      onChange={e => {
+                        const currentDays = formData.working_days || [];
+                        if (e.target.checked) {
                     setFormData({
                       ...formData,
-                      business_type_id: businessTypeId,
+                            working_days: [...currentDays, day.value].sort((a, b) => a - b),
                     });
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder='Pilih jenis bisnis (opsional)' />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value='none'>
-                      Tidak dipilih (ikut parent business)
-                    </SelectItem>
-                    {businessTypes.map(type => (
-                      <SelectItem key={type.id} value={String(type.id)}>
-                        {type.name}
-                        {type.description && (
-                          <span className='text-xs text-gray-500 ml-2'>
-                            - {type.description}
-                          </span>
-                        )}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                        } else {
+                          setFormData({
+                            ...formData,
+                            working_days: currentDays.filter(d => d !== day.value),
+                          });
+                        }
+                      }}
+                      className='w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500'
+                    />
+                    <span className='text-sm font-medium'>{day.label}</span>
+                  </label>
+                ))}
+              </div>
+              {(!formData.working_days || formData.working_days.length === 0) && (
+                <p className='text-sm text-orange-600 mt-2'>
+                  ⚠️ Pilih minimal 1 hari kerja untuk perhitungan gaji yang akurat.
+                </p>
               )}
-              <p className='text-xs text-gray-500 mt-1'>
-                Pilih &quot;Tidak dipilih&quot; untuk mengikuti jenis bisnis
-                dari parent business
+              <p className='text-xs text-gray-500 mt-2'>
+                💡 Hari kerja yang dipilih akan digunakan untuk menghitung gaji karyawan. 
+                Jika karyawan tidak masuk pada hari kerja yang ditentukan, akan dihitung sebagai absen.
               </p>
             </div>
 

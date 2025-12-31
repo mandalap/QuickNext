@@ -3224,6 +3224,7 @@ const CustomerAnalysisReport = ({
 
 const AttendanceReport = ({ dateRange, customDate, refreshTrigger = 0 }) => {
   const { currentBusiness, currentOutlet } = useAuth();
+  const [showAllEmployees, setShowAllEmployees] = useState(false); // ✅ NEW: State untuk show all employees
 
   // Helper to get date range
   const getDateParams = useCallback(() => {
@@ -3298,8 +3299,9 @@ const AttendanceReport = ({ dateRange, customDate, refreshTrigger = 0 }) => {
       ...dateParams,
       businessId: currentBusiness?.id,
       refreshTrigger,
+      employee_limit: showAllEmployees ? 'all' : 10, // ✅ NEW: Add employee limit parameter
     };
-  }, [getDateParams, currentBusiness?.id, refreshTrigger]);
+  }, [getDateParams, currentBusiness?.id, refreshTrigger, showAllEmployees]);
 
   // ✅ REACT QUERY: Fetch attendance report data
   const {
@@ -3312,13 +3314,17 @@ const AttendanceReport = ({ dateRange, customDate, refreshTrigger = 0 }) => {
     queryKey: queryKeys.attendance.report(queryParams),
     queryFn: async () => {
       const params = getDateParams();
-      const result = await attendanceService.getReport(params);
+      // ✅ NEW: Add employee_limit to params
+      const result = await attendanceService.getReport({
+        ...params,
+        employee_limit: showAllEmployees ? 'all' : 10,
+      });
       if (!result?.success) {
         throw new Error(result?.message || 'Failed to fetch attendance report');
       }
       return result;
     },
-    enabled: !!currentBusiness,
+    enabled: !!currentBusiness?.id, // ✅ Only fetch when business is selected
     staleTime: 2 * 60 * 1000, // 2 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
     retry: (failureCount, error) => {
@@ -3458,7 +3464,7 @@ const AttendanceReport = ({ dateRange, customDate, refreshTrigger = 0 }) => {
   return (
     <div className='space-y-6'>
       {/* Statistics Cards */}
-      <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4'>
+      <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4'>
         <Card>
           <CardContent className='p-6'>
             <div className='flex items-center justify-between'>
@@ -3508,6 +3514,37 @@ const AttendanceReport = ({ dateRange, customDate, refreshTrigger = 0 }) => {
                 </p>
               </div>
               <X className='w-8 h-8 text-red-600' />
+            </div>
+          </CardContent>
+        </Card>
+        {/* ✅ NEW: Total Jam Kehadiran */}
+        <Card>
+          <CardContent className='p-6'>
+            <div className='flex items-center justify-between'>
+              <div>
+                <p className='text-sm text-gray-600'>Total Jam Kehadiran</p>
+                <p className='text-2xl font-bold text-purple-600'>
+                  {stats.total_working_hours 
+                    ? (() => {
+                        const hours = Math.floor(stats.total_working_hours);
+                        const minutes = Math.round((stats.total_working_hours - hours) * 60);
+                        if (minutes === 0) {
+                          return `${hours} jam`;
+                        } else if (hours === 0) {
+                          return `${minutes} menit`;
+                        } else {
+                          return `${hours}j ${minutes}m`;
+                        }
+                      })()
+                    : '0 jam'}
+                </p>
+                {stats.total_working_hours && stats.total_working_hours > 0 && (
+                  <p className='text-xs text-gray-500 mt-1'>
+                    {stats.total_working_hours.toFixed(2)} jam
+                  </p>
+                )}
+              </div>
+              <Clock className='w-8 h-8 text-purple-600' />
             </div>
           </CardContent>
         </Card>
@@ -3607,10 +3644,30 @@ const AttendanceReport = ({ dateRange, customDate, refreshTrigger = 0 }) => {
             <div>
               <CardTitle>Performa Karyawan</CardTitle>
               <CardDescription>
-                Top 10 karyawan berdasarkan kehadiran
+                {showAllEmployees 
+                  ? 'Semua karyawan berdasarkan kehadiran'
+                  : 'Top 10 karyawan berdasarkan kehadiran'}
               </CardDescription>
             </div>
             <div className='flex items-center gap-2'>
+              <Button
+                onClick={() => setShowAllEmployees(!showAllEmployees)}
+                variant='outline'
+                size='sm'
+                disabled={isFetchingData}
+              >
+                {showAllEmployees ? (
+                  <>
+                    <Users className='w-4 h-4 mr-2' />
+                    Tampilkan Top 10
+                  </>
+                ) : (
+                  <>
+                    <Users className='w-4 h-4 mr-2' />
+                    Tampilkan Semua
+                  </>
+                )}
+              </Button>
               <Button
                 onClick={handleRefresh}
                 variant='outline'
@@ -3643,6 +3700,7 @@ const AttendanceReport = ({ dateRange, customDate, refreshTrigger = 0 }) => {
                     <TableHead>Selesai</TableHead>
                     <TableHead>Terlambat</TableHead>
                     <TableHead>Tidak Hadir</TableHead>
+                    <TableHead>Total Jam Kehadiran</TableHead>
                     <TableHead>Rate Kehadiran</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -3667,6 +3725,24 @@ const AttendanceReport = ({ dateRange, customDate, refreshTrigger = 0 }) => {
                         <Badge className='bg-red-100 text-red-800'>
                           {emp.absent}
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {emp.total_working_hours 
+                          ? (() => {
+                              const hours = Math.floor(emp.total_working_hours);
+                              const minutes = Math.round((emp.total_working_hours - hours) * 60);
+                              if (minutes === 0) {
+                                return `${hours} jam`;
+                              } else if (hours === 0) {
+                                return `${minutes} menit`;
+                              } else {
+                                return `${hours}j ${minutes}m`;
+                              }
+                            })()
+                          : '0 jam'}
+                        <span className='text-xs text-gray-500 ml-2'>
+                          ({emp.total_working_hours?.toFixed(2) || '0.00'} jam)
+                        </span>
                       </TableCell>
                       <TableCell>
                         <Badge

@@ -1,6 +1,6 @@
 # QuickKasir - Multi-Outlet POS System
 
-[![Version](https://img.shields.io/badge/version-2.0-blue.svg)](https://github.com/your-repo)
+[![Version](https://img.shields.io/badge/version-2.0-blue.svg)](https://github.com/mandalap/QuickNext)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 **QuickKasir** adalah sistem Point of Sale (POS) lengkap yang dirancang untuk membantu bisnis mengelola operasional harian, penjualan, inventori, dan laporan keuangan. Sistem ini mendukung multi-business dan multi-outlet dengan role-based access control yang komprehensif.
@@ -152,8 +152,8 @@ kasir-pos-system/
 ### 1. Clone Repository
 
 ```bash
-git clone https://github.com/your-repo/kasir-pos-system.git
-cd kasir-pos-system
+git clone https://github.com/mandalap/QuickNext.git
+cd QuickNext
 ```
 
 ### 2. Backend Setup

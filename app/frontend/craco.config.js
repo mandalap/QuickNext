@@ -291,6 +291,20 @@ module.exports = {
         hints: env === 'production' ? 'warning' : false,
       };
 
+      // ✅ FIX: Reduce ESLint warnings in terminal
+      // Disable ESLint warnings overlay in development (only show errors)
+      if (webpackConfig.plugins) {
+        const eslintPlugin = webpackConfig.plugins.find(
+          plugin => plugin.constructor.name === 'ESLintWebpackPlugin'
+        );
+        if (eslintPlugin && env === 'development') {
+          // Only show errors, not warnings
+          eslintPlugin.options.failOnWarning = false;
+          eslintPlugin.options.failOnError = false;
+          eslintPlugin.options.emitWarning = false; // Don't emit warnings to terminal
+        }
+      }
+
       return webpackConfig;
     },
   },

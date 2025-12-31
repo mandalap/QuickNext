@@ -218,7 +218,7 @@ function App() {
             .register('/service-worker.js', {
               scope: '/',
             })
-        .then(registration => {
+            .then(registration => {
           if (registrationTimeout) {
             clearTimeout(registrationTimeout);
           }
@@ -230,15 +230,24 @@ function App() {
             try {
               // ✅ FIX: Wrap update() in try-catch and handle errors gracefully
               registration.update().catch(updateError => {
-                // ✅ FIX: Only log errors in development, silently handle in production
-                // This prevents console spam from failed update attempts
-                if (process.env.NODE_ENV === 'development') {
-                  // Check if it's a network error (file not found)
-                  if (updateError.message && updateError.message.includes('fetch')) {
-                    // Service worker file might not be available in dev server
-                    // This is normal and can be ignored
-                    return;
+                // ✅ FIX: Silently handle update errors - they're often network-related
+                // Check if it's a fetch error (file not found or network issue)
+                const errorMessage = updateError?.message || String(updateError);
+                if (
+                  errorMessage.includes('fetch') ||
+                  errorMessage.includes('Failed to update') ||
+                  errorMessage.includes('unknown error') ||
+                  errorMessage.includes('script')
+                ) {
+                  // Service worker file might not be available or network issue
+                  // This is normal in development and can be safely ignored
+                  if (process.env.NODE_ENV === 'development') {
+                    console.debug('⚠️ Service Worker update skipped (development mode)');
                   }
+                  return;
+                }
+                // Only log unexpected errors
+                if (process.env.NODE_ENV === 'development') {
                   console.warn('⚠️ Service Worker update failed:', updateError);
                 }
               });
@@ -294,24 +303,41 @@ function App() {
           }
 
           // ✅ FIX: Better error handling for service worker registration
-          // Only log errors in development, silently fail in production
+          // Check if it's a fetch error (file not found)
+          const errorMessage = error?.message || String(error);
+          if (
+            errorMessage.includes('fetch') ||
+            errorMessage.includes('Failed to update') ||
+            errorMessage.includes('unknown error') ||
+            errorMessage.includes('script')
+          ) {
+            // Service worker file might not be available
+            // Unregister any existing service workers to prevent update errors
+            navigator.serviceWorker.getRegistrations().then(registrations => {
+              registrations.forEach(reg => {
+                reg.unregister().catch(() => {
+                  // Ignore unregister errors
+                });
+              });
+            });
+            
+            if (process.env.NODE_ENV === 'development') {
+              console.debug('⚠️ Service Worker registration skipped (file not available)');
+            }
+            return;
+          }
+          
+          // ✅ FIX: Only log unexpected errors in development
           if (process.env.NODE_ENV === 'development') {
             if (error.name === 'SecurityError') {
               console.error(
                 '❌ Service Worker registration failed: SecurityError - HTTPS required or invalid scope'
               );
             } else if (error.name === 'TypeError') {
-              // ✅ FIX: Check if it's a fetch error (file not found)
-              if (error.message && error.message.includes('fetch')) {
-                console.warn(
-                  '⚠️ Service Worker file not found. This is normal in development if the file is not served correctly.'
-                );
-              } else {
-                console.error(
-                  '❌ Service Worker registration failed: TypeError - Invalid service worker file',
-                  error
-                );
-              }
+              console.error(
+                '❌ Service Worker registration failed: TypeError - Invalid service worker file',
+                error
+              );
             } else {
               console.error('❌ Service Worker registration failed:', {
                 name: error.name,

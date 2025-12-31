@@ -1,39 +1,43 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Calculator,
+  Calendar,
+  CheckCircle,
+  DollarSign,
+  Edit,
+  Eye,
   FileText,
-  Loader2,
   Plus,
+  Printer,
   RefreshCw,
   Search,
+  Trash2,
   TrendingDown,
   TrendingUp,
   Users,
-  DollarSign,
-  Clock,
-  AlertCircle,
-  CheckCircle,
   XCircle,
-  Eye,
-  Edit,
-  Trash2,
-  Printer,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
-import { useAuth } from '../../contexts/AuthContext';
 import { queryKeys } from '../../config/reactQuery';
-import payrollService from '../../services/payroll.service';
+import { useAuth } from '../../contexts/AuthContext';
 import { employeeService } from '../../services/employee.service';
-import { useToast } from '../ui/toast';
-import { Button } from '../ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Input } from '../ui/input';
-import { Badge } from '../ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import PayrollManagementSkeleton from './PayrollManagementSkeleton';
+import payrollService from '../../services/payroll.service';
 import GeneratePayrollModal from '../modals/GeneratePayrollModal';
 import PayrollDetailModal from '../modals/PayrollDetailModal';
 import PayrollSlipModal from '../modals/PayrollSlipModal';
+import { Badge } from '../ui/badge';
+import { Button } from '../ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Input } from '../ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../ui/select';
+import { useToast } from '../ui/toast';
+import PayrollManagementSkeleton from './PayrollManagementSkeleton';
 
 const PayrollManagement = () => {
   const { currentBusiness, user } = useAuth();
@@ -41,8 +45,17 @@ const PayrollManagement = () => {
   const { toast } = useToast();
 
   // Filter states
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  // ✅ NEW: Use date range instead of year/month for more flexibility
+  const getDefaultDateRange = () => {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    return {
+      start: startOfMonth.toISOString().split('T')[0],
+      end: endOfMonth.toISOString().split('T')[0],
+    };
+  };
+  const [dateRange, setDateRange] = useState(getDefaultDateRange());
   const [selectedEmployee, setSelectedEmployee] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
@@ -52,12 +65,10 @@ const PayrollManagement = () => {
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [slipModalOpen, setSlipModalOpen] = useState(false);
   const [selectedPayroll, setSelectedPayroll] = useState(null);
+  const [editModeOnOpen, setEditModeOnOpen] = useState(false); // ✅ NEW: Control edit mode on open
 
   // Get employees list
-  const {
-    data: employeesData,
-    isLoading: employeesLoading,
-  } = useQuery({
+  const { data: employeesData, isLoading: employeesLoading } = useQuery({
     queryKey: queryKeys.employees.list(currentBusiness?.id, {}),
     queryFn: async () => {
       try {
@@ -69,7 +80,7 @@ const PayrollManagement = () => {
           dataLength: Array.isArray(result.data) ? result.data.length : 'N/A',
           result,
         });
-        
+
         // Handle different response structures
         if (result.success !== false) {
           // Case 1: result.data is an array
@@ -81,16 +92,24 @@ const PayrollManagement = () => {
             return result;
           }
           // Case 3: result is an object with data property (but data is not array)
-          if (result && typeof result === 'object' && result.data && !Array.isArray(result.data)) {
+          if (
+            result &&
+            typeof result === 'object' &&
+            result.data &&
+            !Array.isArray(result.data)
+          ) {
             // Wrap single object in array
             return [result.data];
           }
         }
-        
+
         if (result.success === false) {
-          console.warn('⚠️ PayrollManagement: API returned error:', result.error || result.message);
+          console.warn(
+            '⚠️ PayrollManagement: API returned error:',
+            result.error || result.message
+          );
         }
-        
+
         return [];
       } catch (error) {
         console.error('❌ PayrollManagement: Error fetching employees', error);
@@ -106,20 +125,20 @@ const PayrollManagement = () => {
   // Extract employees with proper handling
   const employees = useMemo(() => {
     if (!employeesData) return [];
-    
+
     if (Array.isArray(employeesData)) {
       return employeesData;
     }
-    
+
     if (employeesData && typeof employeesData === 'object') {
       if (Array.isArray(employeesData.data)) {
         return employeesData.data;
       }
     }
-    
+
     return [];
   }, [employeesData]);
-  
+
   // Debug: Log employees when they change
   useEffect(() => {
     if (currentBusiness?.id) {
@@ -128,7 +147,9 @@ const PayrollManagement = () => {
         employeesLoading,
         currentBusinessId: currentBusiness.id,
         employeesDataExists: !!employeesData,
-        employeesDataType: Array.isArray(employeesData) ? 'array' : typeof employeesData,
+        employeesDataType: Array.isArray(employeesData)
+          ? 'array'
+          : typeof employeesData,
         employees: employees.map(emp => ({
           id: emp.id,
           name: emp.name || emp.user?.name,
@@ -145,15 +166,15 @@ const PayrollManagement = () => {
     refetch: refetchPayrolls,
   } = useQuery({
     queryKey: queryKeys.payrolls.list(currentBusiness?.id, {
-      year: selectedYear,
-      month: selectedMonth,
+      start_date: dateRange.start,
+      end_date: dateRange.end,
       employee_id: selectedEmployee !== 'all' ? selectedEmployee : undefined,
       status: selectedStatus !== 'all' ? selectedStatus : undefined,
     }),
     queryFn: async () => {
       const result = await payrollService.getPayrolls({
-        year: selectedYear,
-        month: selectedMonth,
+        start_date: dateRange.start,
+        end_date: dateRange.end,
         employee_id: selectedEmployee !== 'all' ? selectedEmployee : undefined,
         status: selectedStatus !== 'all' ? selectedStatus : undefined,
       });
@@ -173,18 +194,15 @@ const PayrollManagement = () => {
   });
 
   // Get payroll stats
-  const {
-    data: statsData,
-    isLoading: statsLoading,
-  } = useQuery({
+  const { data: statsData, isLoading: statsLoading } = useQuery({
     queryKey: queryKeys.payrolls.stats(currentBusiness?.id, {
-      year: selectedYear,
-      month: selectedMonth,
+      start_date: dateRange.start,
+      end_date: dateRange.end,
     }),
     queryFn: async () => {
       const result = await payrollService.getStats({
-        year: selectedYear,
-        month: selectedMonth,
+        start_date: dateRange.start,
+        end_date: dateRange.end,
       });
       return result.success ? result.data : null;
     },
@@ -193,7 +211,7 @@ const PayrollManagement = () => {
 
   // Delete payroll mutation
   const deletePayrollMutation = useMutation({
-    mutationFn: async (id) => {
+    mutationFn: async id => {
       const result = await payrollService.deletePayroll(id);
       if (!result.success) {
         throw new Error(result.message || 'Failed to delete payroll');
@@ -212,7 +230,7 @@ const PayrollManagement = () => {
         description: 'Payroll berhasil dihapus',
       });
     },
-    onError: (error) => {
+    onError: error => {
       toast({
         title: 'Gagal',
         description: error.message || 'Gagal menghapus payroll',
@@ -242,7 +260,7 @@ const PayrollManagement = () => {
         description: 'Status payroll berhasil diperbarui',
       });
     },
-    onError: (error) => {
+    onError: error => {
       toast({
         title: 'Gagal',
         description: error.message || 'Gagal memperbarui status payroll',
@@ -266,21 +284,30 @@ const PayrollManagement = () => {
     if (currentBusiness?.id) {
       console.log('📋 PayrollManagement: Payrolls state', {
         payrollsDataExists: payrollsData !== undefined,
-        payrollsDataType: Array.isArray(payrollsData) ? 'array' : typeof payrollsData,
+        payrollsDataType: Array.isArray(payrollsData)
+          ? 'array'
+          : typeof payrollsData,
         payrollsCount: payrolls.length,
         payrollsLoading,
         hasPayrollsData,
         payrolls: payrolls.slice(0, 3), // Log first 3 items
       });
     }
-  }, [payrolls, payrollsLoading, hasPayrollsData, currentBusiness?.id, payrollsData]);
+  }, [
+    payrolls,
+    payrollsLoading,
+    hasPayrollsData,
+    currentBusiness?.id,
+    payrollsData,
+  ]);
 
   // Filter payrolls by search term
   const filteredPayrolls = useMemo(() => {
     if (!searchTerm) return payrolls;
     const term = searchTerm.toLowerCase();
-    return payrolls.filter((payroll) => {
-      const employeeName = payroll.employee?.user?.name || payroll.employee?.name || '';
+    return payrolls.filter(payroll => {
+      const employeeName =
+        payroll.employee?.user?.name || payroll.employee?.name || '';
       const payrollNumber = payroll.payroll_number || '';
       return (
         employeeName.toLowerCase().includes(term) ||
@@ -290,7 +317,7 @@ const PayrollManagement = () => {
   }, [payrolls, searchTerm]);
 
   // Format currency
-  const formatCurrency = (amount) => {
+  const formatCurrency = amount => {
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
       currency: 'IDR',
@@ -299,38 +326,78 @@ const PayrollManagement = () => {
   };
 
   // Get status badge
-  const getStatusBadge = (status) => {
+  const getStatusBadge = status => {
     const statusConfig = {
-      draft: { color: 'bg-gray-100 text-gray-800', label: 'Draft', icon: FileText },
-      calculated: { color: 'bg-blue-100 text-blue-800', label: 'Dihitung', icon: Calculator },
-      approved: { color: 'bg-green-100 text-green-800', label: 'Disetujui', icon: CheckCircle },
-      paid: { color: 'bg-purple-100 text-purple-800', label: 'Dibayar', icon: DollarSign },
-      cancelled: { color: 'bg-red-100 text-red-800', label: 'Dibatalkan', icon: XCircle },
+      draft: {
+        color: 'bg-gray-100 text-gray-800',
+        label: 'Draft',
+        icon: FileText,
+      },
+      calculated: {
+        color: 'bg-blue-100 text-blue-800',
+        label: 'Dihitung',
+        icon: Calculator,
+      },
+      approved: {
+        color: 'bg-green-100 text-green-800',
+        label: 'Disetujui',
+        icon: CheckCircle,
+      },
+      paid: {
+        color: 'bg-purple-100 text-purple-800',
+        label: 'Dibayar',
+        icon: DollarSign,
+      },
+      cancelled: {
+        color: 'bg-red-100 text-red-800',
+        label: 'Dibatalkan',
+        icon: XCircle,
+      },
     };
     const config = statusConfig[status] || statusConfig.draft;
     const Icon = config.icon;
     return (
-      <Badge className={`${config.color} font-medium flex items-center space-x-1`}>
-        <Icon className="w-3 h-3" />
+      <Badge
+        className={`${config.color} font-medium flex items-center space-x-1`}
+      >
+        <Icon className='w-3 h-3' />
         <span>{config.label}</span>
       </Badge>
     );
   };
 
   // Handle view detail
-  const handleViewDetail = (payroll) => {
+  const handleViewDetail = payroll => {
     setSelectedPayroll(payroll);
+    setEditModeOnOpen(false); // View mode
+    setDetailModalOpen(true);
+  };
+
+  // ✅ NEW: Handle edit payroll
+  const handleEdit = payroll => {
+    setSelectedPayroll(payroll);
+    setEditModeOnOpen(true); // Edit mode
     setDetailModalOpen(true);
   };
 
   // Handle view slip
-  const handleViewSlip = (payroll) => {
+  const handleViewSlip = payroll => {
     setSelectedPayroll(payroll);
     setSlipModalOpen(true);
   };
 
   // Handle delete
-  const handleDelete = async (payroll) => {
+  const handleDelete = async payroll => {
+    // Check if payroll can be deleted based on status
+    if (!['draft', 'calculated', 'cancelled'].includes(payroll.status)) {
+      toast({
+        title: 'Tidak dapat menghapus',
+        description: `Payroll dengan status "${payroll.status}" tidak dapat dihapus. Hanya payroll dengan status Draft, Dihitung, atau Dibatalkan yang dapat dihapus.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     if (!window.confirm('Apakah Anda yakin ingin menghapus payroll ini?')) {
       return;
     }
@@ -358,151 +425,128 @@ const PayrollManagement = () => {
   // Loading state
   // Check if query is enabled
   const isQueryEnabled = !!currentBusiness?.id;
-  
+
   // Show skeleton during initial load only:
   // 1. Query is enabled
   // 2. Payrolls data is still loading AND no data received yet (most important data)
   // 3. OR if no data has been received at all (first time load)
   const isLoading = payrollsLoading || employeesLoading || statsLoading;
-  
+
   // Only show skeleton if:
   // - Query is enabled AND
   // - (Payrolls is still loading AND no payrolls data yet) OR
   // - (No data received at all - first time load)
-  const isInitialLoad = 
-    isQueryEnabled && (
-      (payrollsLoading && !hasPayrollsData) || // Payrolls still loading and no data yet
-      (!hasPayrollsData && !hasStatsData && !hasEmployeesData) // No data at all (first load)
-    );
+  const isInitialLoad =
+    isQueryEnabled &&
+    ((payrollsLoading && !hasPayrollsData) || // Payrolls still loading and no data yet
+      (!hasPayrollsData && !hasStatsData && !hasEmployeesData)); // No data at all (first load)
 
   if (isInitialLoad) {
     return <PayrollManagementSkeleton />;
   }
 
-  // Generate year options: 5 years back and 5 years forward
-  const yearOptions = [];
-  const currentYear = new Date().getFullYear();
-  for (let i = 5; i >= 0; i--) {
-    yearOptions.push(currentYear - i); // Past years
-  }
-  for (let i = 1; i <= 5; i++) {
-    yearOptions.push(currentYear + i); // Future years
-  }
-
-  // Month options
-  const monthOptions = [
-    { value: 1, label: 'Januari' },
-    { value: 2, label: 'Februari' },
-    { value: 3, label: 'Maret' },
-    { value: 4, label: 'April' },
-    { value: 5, label: 'Mei' },
-    { value: 6, label: 'Juni' },
-    { value: 7, label: 'Juli' },
-    { value: 8, label: 'Agustus' },
-    { value: 9, label: 'September' },
-    { value: 10, label: 'Oktober' },
-    { value: 11, label: 'November' },
-    { value: 12, label: 'Desember' },
-  ];
+  // ✅ REMOVED: Year and month options - now using date picker
 
   return (
-    <div className="space-y-6 p-6">
+    <div className='space-y-6 p-6'>
       {/* Header */}
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+      <div className='flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between'>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Hitung Gaji & Denda</h1>
-          <p className="text-sm text-gray-600 mt-1">
+          <h1 className='text-2xl font-bold text-gray-900'>
+            Hitung Gaji & Denda
+          </h1>
+          <p className='text-sm text-gray-600 mt-1'>
             Kelola perhitungan gaji karyawan dan denda telat otomatis
           </p>
         </div>
         {canManage && (
           <Button
             onClick={() => setGenerateModalOpen(true)}
-            className="bg-blue-600 hover:bg-blue-700"
+            className='bg-blue-600 hover:bg-blue-700'
           >
-            <Plus className="w-4 h-4 mr-2" />
+            <Plus className='w-4 h-4 mr-2' />
             Generate Payroll
           </Button>
         )}
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4'>
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
+          <CardContent className='p-6'>
+            <div className='flex items-center justify-between'>
               <div>
-                <p className="text-sm text-gray-600">Total Payroll</p>
+                <p className='text-sm text-gray-600'>Total Payroll</p>
                 {statsLoading && !hasStatsData ? (
-                  <div className="h-8 w-20 bg-gray-200 rounded animate-pulse mt-1" />
+                  <div className='h-8 w-20 bg-gray-200 rounded animate-pulse mt-1' />
                 ) : (
-                  <p className="text-2xl font-bold text-gray-900 mt-1">
+                  <p className='text-2xl font-bold text-gray-900 mt-1'>
                     {stats?.total_payrolls ?? 0}
                   </p>
                 )}
               </div>
-              <div className="p-3 bg-blue-100 rounded-full">
-                <Users className="w-6 h-6 text-blue-600" />
+              <div className='p-3 bg-blue-100 rounded-full'>
+                <Users className='w-6 h-6 text-blue-600' />
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
+          <CardContent className='p-6'>
+            <div className='flex items-center justify-between'>
               <div>
-                <p className="text-sm text-gray-600">Total Gaji Kotor</p>
+                <p className='text-sm text-gray-600'>Total Gaji Kotor</p>
                 {statsLoading && !hasStatsData ? (
-                  <div className="h-8 w-24 bg-gray-200 rounded animate-pulse mt-1" />
+                  <div className='h-8 w-24 bg-gray-200 rounded animate-pulse mt-1' />
                 ) : (
-                  <p className="text-2xl font-bold text-gray-900 mt-1">
+                  <p className='text-2xl font-bold text-gray-900 mt-1'>
                     {formatCurrency(stats?.total_gross_salary ?? 0)}
                   </p>
                 )}
               </div>
-              <div className="p-3 bg-green-100 rounded-full">
-                <TrendingUp className="w-6 h-6 text-green-600" />
+              <div className='p-3 bg-green-100 rounded-full'>
+                <TrendingUp className='w-6 h-6 text-green-600' />
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
+          <CardContent className='p-6'>
+            <div className='flex items-center justify-between'>
               <div>
-                <p className="text-sm text-gray-600">Total Potongan</p>
+                <p className='text-sm text-gray-600'>Total Potongan</p>
                 {statsLoading && !hasStatsData ? (
-                  <div className="h-8 w-24 bg-gray-200 rounded animate-pulse mt-1" />
+                  <div className='h-8 w-24 bg-gray-200 rounded animate-pulse mt-1' />
                 ) : (
-                  <p className="text-2xl font-bold text-gray-900 mt-1">
+                  <p className='text-2xl font-bold text-gray-900 mt-1'>
                     {formatCurrency(stats?.total_deductions ?? 0)}
                   </p>
                 )}
               </div>
-              <div className="p-3 bg-red-100 rounded-full">
-                <TrendingDown className="w-6 h-6 text-red-600" />
+              <div className='p-3 bg-red-100 rounded-full'>
+                <TrendingDown className='w-6 h-6 text-red-600' />
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
+          <CardContent className='p-6'>
+            <div className='flex items-center justify-between'>
               <div>
-                <p className="text-sm text-gray-600">Total Gaji Bersih</p>
+                <p className='text-sm text-gray-600'>Total Gaji Bersih</p>
                 {statsLoading && !hasStatsData ? (
-                  <div className="h-8 w-24 bg-gray-200 rounded animate-pulse mt-1" />
+                  <div className='h-8 w-24 bg-gray-200 rounded animate-pulse mt-1' />
                 ) : (
-                  <p className="text-2xl font-bold text-gray-900 mt-1">
+                  <p className='text-2xl font-bold text-gray-900 mt-1'>
                     {formatCurrency(stats?.total_net_salary ?? 0)}
                   </p>
                 )}
               </div>
-              <div className="p-3 bg-purple-100 rounded-full">
-                <DollarSign className="w-6 h-6 text-purple-600" />
+              <div className='p-3 bg-purple-100 rounded-full'>
+                <DollarSign className='w-6 h-6 text-purple-600' />
               </div>
             </div>
           </CardContent>
@@ -512,62 +556,108 @@ const PayrollManagement = () => {
       {/* Filters */}
       <Card>
         <CardHeader>
-          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+          <div className='flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between'>
             <CardTitle>Filter Payroll</CardTitle>
             <Button
-              variant="outline"
-              size="sm"
+              variant='outline'
+              size='sm'
               onClick={() => refetchPayrolls()}
               disabled={isLoading}
             >
-              <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+              <RefreshCw
+                className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`}
+              />
               Refresh
             </Button>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            <div>
-              <label className="text-sm font-medium text-gray-700 mb-2 block">Tahun</label>
-              <Select value={selectedYear} onValueChange={(value) => setSelectedYear(parseInt(value))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {yearOptions.map((year) => (
-                    <SelectItem key={year} value={year.toString()}>
-                      {year}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4'>
+            {/* ✅ NEW: Date Range Picker instead of Year/Month */}
+            <div className='sm:col-span-2'>
+              <label className='text-sm font-medium text-gray-700 mb-2 block'>
+                Periode
+              </label>
+              <div className='flex items-end gap-2'>
+                <div className='flex-1'>
+                  <label className='text-xs text-gray-500 mb-1 block'>
+                    Dari Tanggal
+                  </label>
+                  <Input
+                    type='date'
+                    value={dateRange.start}
+                    max={
+                      dateRange.end || new Date().toISOString().split('T')[0]
+                    }
+                    onChange={e =>
+                      setDateRange({
+                        ...dateRange,
+                        start: e.target.value,
+                      })
+                    }
+                    className='w-full'
+                  />
+                </div>
+                <span className='text-gray-400 mb-2'>-</span>
+                <div className='flex-1'>
+                  <label className='text-xs text-gray-500 mb-1 block'>
+                    Sampai Tanggal
+                  </label>
+                  <Input
+                    type='date'
+                    value={dateRange.end}
+                    min={dateRange.start || ''}
+                    max={new Date().toISOString().split('T')[0]}
+                    onChange={e =>
+                      setDateRange({
+                        ...dateRange,
+                        end: e.target.value,
+                      })
+                    }
+                    className='w-full'
+                  />
+                </div>
+                <Button
+                  variant='outline'
+                  size='sm'
+                  onClick={() => {
+                    const now = new Date();
+                    const startOfMonth = new Date(
+                      now.getFullYear(),
+                      now.getMonth(),
+                      1
+                    );
+                    const endOfMonth = new Date(
+                      now.getFullYear(),
+                      now.getMonth() + 1,
+                      0
+                    );
+                    setDateRange({
+                      start: startOfMonth.toISOString().split('T')[0],
+                      end: endOfMonth.toISOString().split('T')[0],
+                    });
+                  }}
+                  title='Reset ke bulan ini'
+                >
+                  <Calendar className='w-4 h-4' />
+                </Button>
+              </div>
             </div>
 
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-2 block">Bulan</label>
-              <Select value={selectedMonth} onValueChange={(value) => setSelectedMonth(parseInt(value))}>
+              <label className='text-sm font-medium text-gray-700 mb-2 block'>
+                Karyawan
+              </label>
+              <Select
+                value={selectedEmployee}
+                onValueChange={setSelectedEmployee}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {monthOptions.map((month) => (
-                    <SelectItem key={month.value} value={month.value.toString()}>
-                      {month.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <label className="text-sm font-medium text-gray-700 mb-2 block">Karyawan</label>
-              <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Semua Karyawan</SelectItem>
-                  {employees.map((emp) => (
+                  <SelectItem value='all'>Semua Karyawan</SelectItem>
+                  {employees.map(emp => (
                     <SelectItem key={emp.id} value={emp.id.toString()}>
                       {emp.name || emp.user?.name}
                     </SelectItem>
@@ -577,31 +667,35 @@ const PayrollManagement = () => {
             </div>
 
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-2 block">Status</label>
+              <label className='text-sm font-medium text-gray-700 mb-2 block'>
+                Status
+              </label>
               <Select value={selectedStatus} onValueChange={setSelectedStatus}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Semua Status</SelectItem>
-                  <SelectItem value="draft">Draft</SelectItem>
-                  <SelectItem value="calculated">Dihitung</SelectItem>
-                  <SelectItem value="approved">Disetujui</SelectItem>
-                  <SelectItem value="paid">Dibayar</SelectItem>
-                  <SelectItem value="cancelled">Dibatalkan</SelectItem>
+                  <SelectItem value='all'>Semua Status</SelectItem>
+                  <SelectItem value='draft'>Draft</SelectItem>
+                  <SelectItem value='calculated'>Dihitung</SelectItem>
+                  <SelectItem value='approved'>Disetujui</SelectItem>
+                  <SelectItem value='paid'>Dibayar</SelectItem>
+                  <SelectItem value='cancelled'>Dibatalkan</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-2 block">Cari</label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <label className='text-sm font-medium text-gray-700 mb-2 block'>
+                Cari
+              </label>
+              <div className='relative'>
+                <Search className='absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400' />
                 <Input
-                  placeholder="Cari karyawan atau nomor payroll..."
+                  placeholder='Cari karyawan atau nomor payroll...'
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
+                  onChange={e => setSearchTerm(e.target.value)}
+                  className='pl-10'
                 />
               </div>
             </div>
@@ -616,137 +710,201 @@ const PayrollManagement = () => {
         </CardHeader>
         <CardContent>
           {payrollsLoading && !hasPayrollsData ? (
-            <div className="space-y-4">
+            <div className='space-y-4'>
               {Array.from({ length: 3 }).map((_, index) => (
-                <div key={index} className="flex items-center space-x-4 p-4 border rounded-lg">
-                  <div className="h-10 w-10 bg-gray-200 rounded-full animate-pulse" />
-                  <div className="flex-1 space-y-2">
-                    <div className="h-4 w-48 bg-gray-200 rounded animate-pulse" />
-                    <div className="h-3 w-32 bg-gray-200 rounded animate-pulse" />
+                <div
+                  key={index}
+                  className='flex items-center space-x-4 p-4 border rounded-lg'
+                >
+                  <div className='h-10 w-10 bg-gray-200 rounded-full animate-pulse' />
+                  <div className='flex-1 space-y-2'>
+                    <div className='h-4 w-48 bg-gray-200 rounded animate-pulse' />
+                    <div className='h-3 w-32 bg-gray-200 rounded animate-pulse' />
                   </div>
-                  <div className="h-8 w-24 bg-gray-200 rounded animate-pulse" />
+                  <div className='h-8 w-24 bg-gray-200 rounded animate-pulse' />
                 </div>
               ))}
             </div>
           ) : !hasPayrollsData ? (
-            <div className="text-center py-12">
-              <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600">Memuat data payroll...</p>
+            <div className='text-center py-12'>
+              <FileText className='w-12 h-12 text-gray-400 mx-auto mb-4' />
+              <p className='text-gray-600'>Memuat data payroll...</p>
             </div>
           ) : filteredPayrolls.length === 0 ? (
-            <div className="text-center py-12">
-              <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600">Tidak ada payroll ditemukan</p>
+            <div className='text-center py-12'>
+              <FileText className='w-12 h-12 text-gray-400 mx-auto mb-4' />
+              <p className='text-gray-600'>Tidak ada payroll ditemukan</p>
               {canManage && (
                 <Button
                   onClick={() => setGenerateModalOpen(true)}
-                  className="mt-4"
-                  variant="outline"
+                  className='mt-4'
+                  variant='outline'
                 >
-                  <Plus className="w-4 h-4 mr-2" />
+                  <Plus className='w-4 h-4 mr-2' />
                   Generate Payroll Pertama
                 </Button>
               )}
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
+            <div className='overflow-x-auto'>
+              <table className='w-full'>
                 <thead>
-                  <tr className="border-b">
-                    <th className="text-left p-3 text-sm font-medium text-gray-700">Karyawan</th>
-                    <th className="text-left p-3 text-sm font-medium text-gray-700">Periode</th>
-                    <th className="text-left p-3 text-sm font-medium text-gray-700">Gaji Kotor</th>
-                    <th className="text-left p-3 text-sm font-medium text-gray-700">Potongan</th>
-                    <th className="text-left p-3 text-sm font-medium text-gray-700">Gaji Bersih</th>
-                    <th className="text-left p-3 text-sm font-medium text-gray-700">Status</th>
-                    <th className="text-right p-3 text-sm font-medium text-gray-700">Aksi</th>
+                  <tr className='border-b'>
+                    <th className='text-left p-3 text-sm font-medium text-gray-700'>
+                      Karyawan
+                    </th>
+                    <th className='text-left p-3 text-sm font-medium text-gray-700'>
+                      Periode
+                    </th>
+                    <th className='text-left p-3 text-sm font-medium text-gray-700'>
+                      Gaji Kotor
+                    </th>
+                    <th className='text-left p-3 text-sm font-medium text-gray-700'>
+                      Potongan
+                    </th>
+                    <th className='text-left p-3 text-sm font-medium text-gray-700'>
+                      Gaji Bersih
+                    </th>
+                    <th className='text-left p-3 text-sm font-medium text-gray-700'>
+                      Status
+                    </th>
+                    <th className='text-right p-3 text-sm font-medium text-gray-700'>
+                      Aksi
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredPayrolls.map((payroll) => (
-                    <tr key={payroll.id} className="border-b hover:bg-gray-50">
-                      <td className="p-3">
+                  {filteredPayrolls.map(payroll => {
+                    // Debug: Check conditions for delete button
+                    const canShowDelete = canManage && ['draft', 'calculated', 'cancelled'].includes(payroll.status);
+                    if (process.env.NODE_ENV === 'development' && canManage) {
+                      console.log('🔍 Payroll Delete Button Debug:', {
+                        id: payroll.id,
+                        status: payroll.status,
+                        canManage,
+                        canShowDelete,
+                        employee: payroll.employee?.user?.name || payroll.employee?.name,
+                      });
+                    }
+                    return (
+                    <tr key={payroll.id} className='border-b hover:bg-gray-50'>
+                      <td className='p-3'>
                         <div>
-                          <p className="font-medium text-gray-900">
-                            {payroll.employee?.user?.name || payroll.employee?.name || 'N/A'}
+                          <p className='font-medium text-gray-900'>
+                            {payroll.employee?.user?.name ||
+                              payroll.employee?.name ||
+                              'N/A'}
                           </p>
-                          <p className="text-xs text-gray-500">{payroll.payroll_number}</p>
+                          <p className='text-xs text-gray-500'>
+                            {payroll.payroll_number}
+                          </p>
                         </div>
                       </td>
-                      <td className="p-3 text-sm text-gray-600">
-                        {new Date(payroll.period_start).toLocaleDateString('id-ID', {
-                          day: 'numeric',
-                          month: 'short',
-                        })}{' '}
+                      <td className='p-3 text-sm text-gray-600'>
+                        {new Date(payroll.period_start).toLocaleDateString(
+                          'id-ID',
+                          {
+                            day: 'numeric',
+                            month: 'short',
+                          }
+                        )}{' '}
                         -{' '}
-                        {new Date(payroll.period_end).toLocaleDateString('id-ID', {
-                          day: 'numeric',
-                          month: 'short',
-                          year: 'numeric',
-                        })}
+                        {new Date(payroll.period_end).toLocaleDateString(
+                          'id-ID',
+                          {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                          }
+                        )}
                       </td>
-                      <td className="p-3 text-sm font-medium text-gray-900">
+                      <td className='p-3 text-sm font-medium text-gray-900'>
                         {formatCurrency(payroll.gross_salary)}
                       </td>
-                      <td className="p-3 text-sm text-red-600">
+                      <td className='p-3 text-sm text-red-600'>
                         {formatCurrency(payroll.total_deductions)}
                       </td>
-                      <td className="p-3 text-sm font-bold text-green-600">
+                      <td className='p-3 text-sm font-bold text-green-600'>
                         {formatCurrency(payroll.net_salary)}
                       </td>
-                      <td className="p-3">{getStatusBadge(payroll.status)}</td>
-                      <td className="p-3">
-                        <div className="flex items-center justify-end gap-2">
+                      <td className='p-3'>{getStatusBadge(payroll.status)}</td>
+                      <td className='p-3'>
+                        <div className='flex items-center justify-end gap-2'>
                           <Button
-                            variant="ghost"
-                            size="sm"
+                            variant='ghost'
+                            size='sm'
                             onClick={() => handleViewDetail(payroll)}
                           >
-                            <Eye className="w-4 h-4" />
+                            <Eye className='w-4 h-4' />
                           </Button>
                           <Button
-                            variant="ghost"
-                            size="sm"
+                            variant='ghost'
+                            size='sm'
                             onClick={() => handleViewSlip(payroll)}
                           >
-                            <Printer className="w-4 h-4" />
+                            <Printer className='w-4 h-4' />
                           </Button>
                           {canManage && (
                             <>
+                              {/* ✅ NEW: Edit button - only for draft and calculated status */}
+                              {['draft', 'calculated'].includes(
+                                payroll.status
+                              ) && (
+                                <Button
+                                  variant='ghost'
+                                  size='sm'
+                                  onClick={() => handleEdit(payroll)}
+                                  title='Edit Payroll'
+                                  className='text-blue-600 hover:text-blue-700'
+                                >
+                                  <Edit className='w-4 h-4' />
+                                </Button>
+                              )}
                               {payroll.status === 'calculated' && (
                                 <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleUpdateStatus(payroll, 'approved')}
+                                  variant='ghost'
+                                  size='sm'
+                                  onClick={() =>
+                                    handleUpdateStatus(payroll, 'approved')
+                                  }
+                                  title='Setujui'
                                 >
-                                  <CheckCircle className="w-4 h-4 text-green-600" />
+                                  <CheckCircle className='w-4 h-4 text-green-600' />
                                 </Button>
                               )}
                               {payroll.status === 'approved' && (
                                 <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleUpdateStatus(payroll, 'paid')}
+                                  variant='ghost'
+                                  size='sm'
+                                  onClick={() =>
+                                    handleUpdateStatus(payroll, 'paid')
+                                  }
+                                  title='Tandai Dibayar'
                                 >
-                                  <DollarSign className="w-4 h-4 text-purple-600" />
+                                  <DollarSign className='w-4 h-4 text-purple-600' />
                                 </Button>
                               )}
-                              {['draft', 'calculated'].includes(payroll.status) && (
+                              {/* Delete button - only for draft, calculated, and cancelled status */}
+                              {['draft', 'calculated', 'cancelled'].includes(
+                                payroll.status
+                              ) && (
                                 <Button
-                                  variant="ghost"
-                                  size="sm"
+                                  variant='ghost'
+                                  size='sm'
                                   onClick={() => handleDelete(payroll)}
-                                  className="text-red-600 hover:text-red-700"
+                                  title='Hapus Payroll'
+                                  className='text-red-600 hover:text-red-700'
                                 >
-                                  <Trash2 className="w-4 h-4" />
+                                  <Trash2 className='w-4 h-4' />
                                 </Button>
                               )}
                             </>
                           )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -764,8 +922,16 @@ const PayrollManagement = () => {
           }}
           employees={employees}
           employeesLoading={employeesLoading}
-          defaultYear={selectedYear}
-          defaultMonth={selectedMonth}
+          defaultYear={
+            dateRange.start
+              ? new Date(dateRange.start).getFullYear()
+              : new Date().getFullYear()
+          }
+          defaultMonth={
+            dateRange.start
+              ? new Date(dateRange.start).getMonth() + 1
+              : new Date().getMonth() + 1
+          }
         />
       )}
 
@@ -775,9 +941,11 @@ const PayrollManagement = () => {
           onClose={() => {
             setDetailModalOpen(false);
             setSelectedPayroll(null);
+            setEditModeOnOpen(false); // ✅ Reset edit mode
           }}
           payroll={selectedPayroll}
           canManage={canManage}
+          initialEditMode={editModeOnOpen} // ✅ NEW: Pass edit mode
           onUpdate={refetchPayrolls}
         />
       )}
@@ -797,4 +965,3 @@ const PayrollManagement = () => {
 };
 
 export default PayrollManagement;
-
