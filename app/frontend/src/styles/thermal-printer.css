@@ -12,8 +12,8 @@
   }
 
   * {
-    margin: 0;
-    padding: 0;
+    margin: 0 !important;
+    padding: 0 !important;
     box-sizing: border-box;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
@@ -22,6 +22,7 @@
   html,
   body {
     width: 80mm;
+    height: auto;
     margin: 0;
     padding: 0;
     font-family: 'Courier New', monospace;
@@ -32,14 +33,31 @@
   }
 
   body {
-    padding: 5mm;
+    padding: 0;
   }
 
   /* Hide non-printable elements */
   .no-print,
   button,
-  .print\\:hidden {
+  .print\\:hidden,
+  [data-dialog-overlay],
+  [role="dialog"] > * > button,
+  dialog,
+  .dialog-overlay,
+  .dialog-header,
+  .dialog-close {
     display: none !important;
+  }
+
+  /* Hide all UI elements except receipt content */
+  body > * {
+    display: none !important;
+  }
+
+  /* Show only receipt content */
+  .receipt-content,
+  .thermal-receipt {
+    display: block !important;
   }
 
   /* Receipt Container */
@@ -256,6 +274,38 @@
       min-width: 20mm !important;
       max-width: 20mm !important;
     }
+  }
+
+  /* Dialog print styles */
+  [role="dialog"],
+  dialog {
+    display: none !important;
+  }
+
+  /* Hide dialog overlay and content container except receipt */
+  .dialog-overlay,
+  .DialogContent {
+    display: none !important;
+  }
+
+  /* Ensure receipt content is visible */
+  .receipt-content.thermal-receipt {
+    display: block !important;
+    margin: 0;
+    padding: 0;
+    width: 80mm;
+    max-width: 80mm;
+  }
+}
+
+/* Remove all scrollbars during print */
+@media print {
+  ::-webkit-scrollbar {
+    display: none;
+  }
+  
+  * {
+    scroll-behavior: auto !important;
   }
 }
 

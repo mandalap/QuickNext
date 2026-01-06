@@ -41,7 +41,60 @@ const PrintReceiptModal = ({ open, onClose, orderId }) => {
   };
 
   const handlePrint = () => {
-    window.print();
+    // Focus on receipt content only
+    const printWindow = window.open('', '_blank');
+    const receiptElement = document.querySelector('.receipt-content');
+    
+    if (!receiptElement) {
+      console.error('Receipt element not found');
+      return;
+    }
+
+    // Clone receipt element and wrap in proper HTML
+    const receiptClone = receiptElement.cloneNode(true);
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>Struk Pembayaran</title>
+        <link rel="stylesheet" href="${window.location.origin}/src/styles/thermal-printer.css">
+        <style>
+          @page {
+            size: 80mm auto;
+            margin: 0;
+            padding: 0;
+          }
+          * {
+            margin: 0;
+            padding: 0;
+          }
+          body {
+            width: 80mm;
+            margin: 0;
+            padding: 0;
+            font-family: 'Courier New', monospace;
+          }
+          .receipt-content {
+            width: 100%;
+            padding: 0;
+          }
+        </style>
+      </head>
+      <body>
+        ${receiptClone.innerHTML}
+        <script>
+          window.onload = function() {
+            window.print();
+            window.close();
+          }
+        </script>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
   };
 
   const handleDownload = () => {
