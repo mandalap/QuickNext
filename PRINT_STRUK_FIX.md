@@ -15,6 +15,7 @@ Ketika melakukan print struk, malah print 1 halaman penuh daripada hanya bagian 
 ### 1. **File: `app/frontend/src/styles/thermal-printer.css`**
 
 #### Perubahan A: Tambah `!important` pada reset margin/padding
+
 ```css
 /* SEBELUM */
 * {
@@ -34,6 +35,7 @@ Ketika melakukan print struk, malah print 1 halaman penuh daripada hanya bagian 
 ---
 
 #### Perubahan B: Hapus padding dari body dan tambah height: auto
+
 ```css
 /* SEBELUM */
 body {
@@ -47,7 +49,7 @@ body {
 
 html,
 body {
-  height: auto;  /* Tambah ini */
+  height: auto; /* Tambah ini */
 }
 ```
 
@@ -56,6 +58,7 @@ body {
 ---
 
 #### Perubahan C: Sembunyikan semua dialog elements
+
 ```css
 /* SEBELUM */
 .no-print,
@@ -94,6 +97,7 @@ body > * {
 ---
 
 #### Perubahan D: Tambah spesifik dialog print styles
+
 ```css
 /* Dialog print styles */
 [role="dialog"],
@@ -122,13 +126,14 @@ dialog {
 ---
 
 #### Perubahan E: Hapus scrollbar saat print
+
 ```css
 /* Remove all scrollbars during print */
 @media print {
   ::-webkit-scrollbar {
     display: none;
   }
-  
+
   * {
     scroll-behavior: auto !important;
   }
@@ -144,6 +149,7 @@ dialog {
 #### Perubahan: Update handlePrint function
 
 **SEBELUM:**
+
 ```jsx
 const handlePrint = () => {
   window.print();
@@ -151,14 +157,15 @@ const handlePrint = () => {
 ```
 
 **SESUDAH:**
+
 ```jsx
 const handlePrint = () => {
   // Focus on receipt content only
-  const printWindow = window.open('', '_blank');
-  const receiptElement = document.querySelector('.receipt-content');
-  
+  const printWindow = window.open("", "_blank");
+  const receiptElement = document.querySelector(".receipt-content");
+
   if (!receiptElement) {
-    console.error('Receipt element not found');
+    console.error("Receipt element not found");
     return;
   }
 
@@ -211,6 +218,7 @@ const handlePrint = () => {
 ```
 
 **Alasan:**
+
 - Membuat window baru yang hanya berisi receipt content
 - Menghindari dialog overlay dan element lain
 - CSS di-link langsung untuk memastikan style tercopy dengan benar
@@ -235,6 +243,7 @@ Setelah perbaikan, lakukan test:
 ## 📊 Hasil yang Diharapkan
 
 ### Sebelum Perbaikan ❌
+
 ```
 ┌─────────────────────────────────────┐
 │  [Dialog Header]                    │
@@ -252,6 +261,7 @@ Setelah perbaikan, lakukan test:
 ```
 
 ### Sesudah Perbaikan ✅
+
 ```
 KASIR POS SYSTEM
 Alamat Outlet
@@ -283,7 +293,7 @@ Terima kasih!
 ✅ **Hemat kertas** - Hanya print struk yang diperlukan  
 ✅ **Cepat** - Tidak ada halaman kosong  
 ✅ **Rapi** - Format thermal printer 80mm proper  
-✅ **Professional** - Struk tercetak dengan baik  
+✅ **Professional** - Struk tercetak dengan baik
 
 ---
 

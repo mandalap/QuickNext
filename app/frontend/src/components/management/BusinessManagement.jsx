@@ -2,7 +2,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Building2,
   Calendar,
-  Camera,
   CheckCircle,
   CreditCard,
   Edit,
@@ -12,6 +11,7 @@ import {
   MessageSquare,
   Phone,
   Plus,
+  Receipt,
   RefreshCw,
   Search,
   Store,
@@ -30,6 +30,7 @@ import { retryWithBackoff } from '../../utils/performance/retry';
 import AccessDeniedModal from '../modals/AccessDeniedModal';
 import PaymentGatewayConfigModal from '../modals/PaymentGatewayConfigModal';
 import WhatsAppSettings from '../settings/WhatsAppSettings';
+import ReceiptFooterSettings from '../settings/ReceiptFooterSettings';
 import SubscriptionLimitModal from '../subscription/SubscriptionLimitModal';
 import {
   AlertDialog,
@@ -255,10 +256,13 @@ const BusinessManagement = () => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showPaymentGatewayModal, setShowPaymentGatewayModal] = useState(false);
   const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
+  const [showReceiptFooterModal, setShowReceiptFooterModal] = useState(false);
   const [showAccessDeniedModal, setShowAccessDeniedModal] = useState(false);
   const [accessDeniedFeature, setAccessDeniedFeature] = useState(null);
   const [selectedOutlet, setSelectedOutlet] = useState(null);
   const [selectedOutletForWhatsApp, setSelectedOutletForWhatsApp] =
+    useState(null);
+  const [selectedOutletForReceiptFooter, setSelectedOutletForReceiptFooter] =
     useState(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -268,7 +272,7 @@ const BusinessManagement = () => {
     logo: '',
     is_active: true,
     self_service_enabled: false,
-    attendance_face_id_required: false,
+    // attendance_face_id_required: false, // FaceID feature temporarily disabled
     latitude: '',
     longitude: '',
     attendance_radius: 100,
@@ -343,7 +347,7 @@ const BusinessManagement = () => {
     setLoadingLocation(true);
     let watchId = null;
     let timeoutId = null;
-    
+
     // Helper to stop watching and cleanup
     const cleanup = () => {
       if (watchId !== null) {
@@ -357,50 +361,51 @@ const BusinessManagement = () => {
     };
 
     // Helper to set location and cleanup
-    const setLocation = (position) => {
+    const setLocation = position => {
       cleanup();
       const { latitude, longitude, accuracy } = position.coords;
-        setFormData({
-          ...formData,
-          latitude: latitude.toFixed(8),
-          longitude: longitude.toFixed(8),
-        });
-      
-      const accuracyMessage = accuracy 
-        ? ` (Akurasi: ±${Math.round(accuracy)}m)` 
-        : '';
-      toast.success(`✅ Lokasi GPS berhasil diambil!${accuracyMessage}`, { 
-        duration: 4000 
+      setFormData({
+        ...formData,
+        latitude: latitude.toFixed(8),
+        longitude: longitude.toFixed(8),
       });
-        setLoadingLocation(false);
+
+      const accuracyMessage = accuracy
+        ? ` (Akurasi: ±${Math.round(accuracy)}m)`
+        : '';
+      toast.success(`✅ Lokasi GPS berhasil diambil!${accuracyMessage}`, {
+        duration: 4000,
+      });
+      setLoadingLocation(false);
     };
 
     // Helper to handle error
     const handleError = (error, useWatchPosition = false) => {
-        let errorMessage = 'Gagal mendapatkan lokasi GPS';
-      
-        switch (error.code) {
-          case error.PERMISSION_DENIED:
-            errorMessage =
+      let errorMessage = 'Gagal mendapatkan lokasi GPS';
+
+      switch (error.code) {
+        case error.PERMISSION_DENIED:
+          errorMessage =
             'Akses lokasi ditolak. Silakan izinkan akses lokasi di pengaturan browser, lalu coba lagi.';
-            break;
-          case error.POSITION_UNAVAILABLE:
-          errorMessage = 'Informasi lokasi tidak tersedia. Pastikan GPS aktif dan sinyal baik.';
-            break;
-          case error.TIMEOUT:
-            errorMessage = 'Waktu permintaan lokasi habis.';
-            break;
-          default:
-            errorMessage = 'Terjadi kesalahan saat mendapatkan lokasi.';
-            break;
-        }
+          break;
+        case error.POSITION_UNAVAILABLE:
+          errorMessage =
+            'Informasi lokasi tidak tersedia. Pastikan GPS aktif dan sinyal baik.';
+          break;
+        case error.TIMEOUT:
+          errorMessage = 'Waktu permintaan lokasi habis.';
+          break;
+        default:
+          errorMessage = 'Terjadi kesalahan saat mendapatkan lokasi.';
+          break;
+      }
 
       // If timeout and haven't tried watchPosition, try it
       if (error.code === error.TIMEOUT && !useWatchPosition) {
         toast.info('⏳ Mencoba metode alternatif (watchPosition)...', {
-          duration: 3000
+          duration: 3000,
         });
-        
+
         // Try watchPosition as fallback
         const watchOptions = {
           enableHighAccuracy: false, // Use lower accuracy for watchPosition
@@ -413,23 +418,26 @@ const BusinessManagement = () => {
             navigator.geolocation.clearWatch(watchId);
             watchId = null;
           }
-          toast.error('⚠️ Waktu permintaan lokasi habis. Silakan coba lagi atau input manual.', { 
-            duration: 6000 
-          });
+          toast.error(
+            '⚠️ Waktu permintaan lokasi habis. Silakan coba lagi atau input manual.',
+            {
+              duration: 6000,
+            }
+          );
           setLoadingLocation(false);
         }, 30000);
 
         watchId = navigator.geolocation.watchPosition(
-          (position) => {
+          position => {
             clearTimeout(watchTimeout);
             setLocation(position);
           },
-          (watchError) => {
+          watchError => {
             clearTimeout(watchTimeout);
             cleanup();
-        toast.error(`⚠️ ${errorMessage}`, { duration: 6000 });
-        setLoadingLocation(false);
-      },
+            toast.error(`⚠️ ${errorMessage}`, { duration: 6000 });
+            setLoadingLocation(false);
+          },
           watchOptions
         );
         return;
@@ -437,28 +445,31 @@ const BusinessManagement = () => {
 
       // All methods exhausted
       cleanup();
-      toast.error(`⚠️ ${errorMessage}\n\n💡 Tips: Pastikan GPS aktif, izinkan akses lokasi, atau input koordinat secara manual.`, { 
-        duration: 8000 
-      });
+      toast.error(
+        `⚠️ ${errorMessage}\n\n💡 Tips: Pastikan GPS aktif, izinkan akses lokasi, atau input koordinat secara manual.`,
+        {
+          duration: 8000,
+        }
+      );
       setLoadingLocation(false);
     };
 
     // Strategy 1: Try getCurrentPosition with high accuracy (longer timeout)
     const optionsHigh = {
-        enableHighAccuracy: true,
+      enableHighAccuracy: true,
       timeout: 30000, // 30 seconds (increased from 20)
-        maximumAge: 0,
+      maximumAge: 0,
     };
 
     navigator.geolocation.getCurrentPosition(
       setLocation,
-      (error) => {
+      error => {
         // If timeout, try with lower accuracy first
         if (error.code === error.TIMEOUT) {
           toast.info('⏳ Mencoba dengan akurasi lebih rendah...', {
-            duration: 3000
+            duration: 3000,
           });
-          
+
           // Strategy 2: Try getCurrentPosition with lower accuracy
           const optionsLow = {
             enableHighAccuracy: false,
@@ -468,7 +479,7 @@ const BusinessManagement = () => {
 
           navigator.geolocation.getCurrentPosition(
             setLocation,
-            (lowAccuracyError) => {
+            lowAccuracyError => {
               // If still timeout, try watchPosition
               handleError(lowAccuracyError, false);
             },
@@ -494,8 +505,7 @@ const BusinessManagement = () => {
         logo: outlet.logo || '',
         is_active: outlet.is_active,
         self_service_enabled: outlet.self_service_enabled ?? false,
-        attendance_face_id_required:
-          outlet.attendance_face_id_required ?? false,
+        // attendance_face_id_required: outlet.attendance_face_id_required ?? false, // FaceID feature temporarily disabled
         attendance_gps_required: outlet.attendance_gps_required ?? false,
         latitude: outlet.latitude || '',
         longitude: outlet.longitude || '',
@@ -521,7 +531,7 @@ const BusinessManagement = () => {
         logo: '',
         is_active: true,
         self_service_enabled: false,
-        attendance_face_id_required: false,
+        // attendance_face_id_required: false, // FaceID feature temporarily disabled
         attendance_gps_required: false,
         latitude: '',
         longitude: '',
@@ -700,8 +710,7 @@ const BusinessManagement = () => {
               }
             } catch (refetchError) {
               // ✅ FIX: Jangan tampilkan error toast untuk refetch error (non-critical)
-              // Hanya log untuk debugging
-              console.warn('⚠️ Refetch error (non-critical):', refetchError);
+              // Silently handle refetch errors
             }
 
             // ✅ FIX: Tampilkan success toast SETELAH semua operasi selesai
@@ -1545,6 +1554,22 @@ const BusinessManagement = () => {
                         </span>
                         <span className='sm:hidden'>WhatsApp</span>
                       </Button>
+                      {/* Receipt Footer Configuration */}
+                      <Button
+                        variant='outline'
+                        size='sm'
+                        className='w-full text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-blue-200 text-xs sm:text-sm'
+                        onClick={() => {
+                          setSelectedOutletForReceiptFooter(outlet);
+                          setShowReceiptFooterModal(true);
+                        }}
+                      >
+                        <Receipt className='w-3 h-3 sm:mr-1' />
+                        <span className='hidden sm:inline'>
+                          Custom Footer Struk
+                        </span>
+                        <span className='sm:hidden'>Footer</span>
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -1683,17 +1708,19 @@ const BusinessManagement = () => {
                   )}
                 </Button>
                 <p className='text-xs text-gray-500 mt-2'>
-                  Klik tombol di atas untuk mengambil koordinat GPS dari lokasi Anda saat ini.
+                  Klik tombol di atas untuk mengambil koordinat GPS dari lokasi
+                  Anda saat ini.
                   <br />
                   <span className='text-orange-600 font-medium'>
-                    💡 Tips: Pastikan GPS aktif, izinkan akses lokasi di browser, dan gunakan di luar ruangan untuk hasil terbaik.
+                    💡 Tips: Pastikan GPS aktif, izinkan akses lokasi di
+                    browser, dan gunakan di luar ruangan untuk hasil terbaik.
                   </span>
                   <br />
                   <span className='text-blue-600'>
                     Atau input manual: Buka{' '}
-                    <a 
-                      href='https://www.google.com/maps' 
-                      target='_blank' 
+                    <a
+                      href='https://www.google.com/maps'
+                      target='_blank'
                       rel='noopener noreferrer'
                       className='underline hover:text-blue-800'
                     >
@@ -1776,37 +1803,7 @@ const BusinessManagement = () => {
               {user &&
                 (user.role === 'super_admin' || user.role === 'owner') && (
                   <div className='mt-6 space-y-4'>
-                    {/* FaceID Requirement Setting */}
-                    <div className='p-4 bg-blue-50 rounded-lg border border-blue-200'>
-                      <div className='flex items-center justify-between'>
-                        <div className='flex-1'>
-                          <div className='flex items-center gap-2 mb-1'>
-                            <Camera className='w-4 h-4 text-blue-600' />
-                            <Label
-                              htmlFor='attendance_face_id_required'
-                              className='text-base font-semibold text-blue-900'
-                            >
-                              Wajibkan FaceID untuk Absensi
-                            </Label>
-                          </div>
-                          <p className='text-xs text-gray-600 mt-1'>
-                            Jika diaktifkan, karyawan harus menggunakan FaceID
-                            untuk check-in dan check-out. Jika dinonaktifkan,
-                            karyawan bisa menggunakan tombol saja tanpa FaceID.
-                          </p>
-                        </div>
-                        <Switch
-                          id='attendance_face_id_required'
-                          checked={formData.attendance_face_id_required}
-                          onCheckedChange={checked => {
-                            setFormData({
-                              ...formData,
-                              attendance_face_id_required: checked,
-                            });
-                          }}
-                        />
-                      </div>
-                    </div>
+                    {/* FaceID Requirement Setting - Temporarily disabled */}
 
                     {/* GPS Requirement Setting */}
                     <div className='p-4 bg-orange-50 rounded-lg border border-orange-200'>
@@ -1994,9 +1991,10 @@ const BusinessManagement = () => {
               <div className='flex items-center gap-2 mb-2'>
                 <Calendar className='w-5 h-5 text-green-600' />
                 <h3 className='text-lg font-semibold'>Hari Kerja</h3>
-                </div>
+              </div>
               <p className='text-sm text-gray-600 mb-4'>
-                Pilih hari kerja untuk outlet ini. Gaji akan dihitung berdasarkan hari kerja yang ditentukan.
+                Pilih hari kerja untuk outlet ini. Gaji akan dihitung
+                berdasarkan hari kerja yang ditentukan.
               </p>
               <div className='grid grid-cols-2 sm:grid-cols-4 gap-3'>
                 {[
@@ -2018,18 +2016,24 @@ const BusinessManagement = () => {
                   >
                     <input
                       type='checkbox'
-                      checked={formData.working_days?.includes(day.value) || false}
+                      checked={
+                        formData.working_days?.includes(day.value) || false
+                      }
                       onChange={e => {
                         const currentDays = formData.working_days || [];
                         if (e.target.checked) {
-                    setFormData({
-                      ...formData,
-                            working_days: [...currentDays, day.value].sort((a, b) => a - b),
-                    });
+                          setFormData({
+                            ...formData,
+                            working_days: [...currentDays, day.value].sort(
+                              (a, b) => a - b
+                            ),
+                          });
                         } else {
                           setFormData({
                             ...formData,
-                            working_days: currentDays.filter(d => d !== day.value),
+                            working_days: currentDays.filter(
+                              d => d !== day.value
+                            ),
                           });
                         }
                       }}
@@ -2039,14 +2043,17 @@ const BusinessManagement = () => {
                   </label>
                 ))}
               </div>
-              {(!formData.working_days || formData.working_days.length === 0) && (
+              {(!formData.working_days ||
+                formData.working_days.length === 0) && (
                 <p className='text-sm text-orange-600 mt-2'>
-                  ⚠️ Pilih minimal 1 hari kerja untuk perhitungan gaji yang akurat.
+                  ⚠️ Pilih minimal 1 hari kerja untuk perhitungan gaji yang
+                  akurat.
                 </p>
               )}
               <p className='text-xs text-gray-500 mt-2'>
-                💡 Hari kerja yang dipilih akan digunakan untuk menghitung gaji karyawan. 
-                Jika karyawan tidak masuk pada hari kerja yang ditentukan, akan dihitung sebagai absen.
+                💡 Hari kerja yang dipilih akan digunakan untuk menghitung gaji
+                karyawan. Jika karyawan tidak masuk pada hari kerja yang
+                ditentukan, akan dihitung sebagai absen.
               </p>
             </div>
 
@@ -2462,6 +2469,35 @@ const BusinessManagement = () => {
               onClick={() => {
                 setShowWhatsAppModal(false);
                 setSelectedOutletForWhatsApp(null);
+              }}
+            >
+              Tutup
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Receipt Footer Configuration Modal */}
+      <Dialog open={showReceiptFooterModal} onOpenChange={setShowReceiptFooterModal}>
+        <DialogContent className='sm:max-w-[700px] max-h-[90vh] overflow-y-auto'>
+          <DialogHeader>
+            <DialogTitle>Custom Footer Struk</DialogTitle>
+            <DialogDescription>
+              Atur pesan custom yang akan ditampilkan di bawah struk pembayaran
+            </DialogDescription>
+          </DialogHeader>
+          {selectedOutletForReceiptFooter && (
+            <ReceiptFooterSettings
+              outletId={selectedOutletForReceiptFooter.id}
+              outletName={selectedOutletForReceiptFooter.name}
+            />
+          )}
+          <DialogFooter>
+            <Button
+              variant='outline'
+              onClick={() => {
+                setShowReceiptFooterModal(false);
+                setSelectedOutletForReceiptFooter(null);
               }}
             >
               Tutup

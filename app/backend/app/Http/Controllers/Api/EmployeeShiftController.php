@@ -1442,19 +1442,6 @@ class EmployeeShiftController extends Controller
                     $totalWorkingHours = 0;
                     $employeeShifts = $shiftsWithHours->get($item->user_id, collect());
 
-                    // ✅ DEBUG: Log for this employee
-                    if ($employeeShifts->isEmpty()) {
-                        Log::debug('No shifts with hours for user', [
-                            'user_id' => $item->user_id,
-                            'user_name' => $item->user_name,
-                        ]);
-                    } else {
-                        Log::debug('Found shifts with hours for user', [
-                            'user_id' => $item->user_id,
-                            'user_name' => $item->user_name,
-                            'shifts_count' => $employeeShifts->count(),
-                        ]);
-                    }
 
                     foreach ($employeeShifts as $shift) {
                         try {
@@ -1491,15 +1478,6 @@ class EmployeeShiftController extends Controller
 
                             $hours = $clockIn->diffInMinutes($clockOut) / 60;
                             $totalWorkingHours += $hours;
-
-                            Log::debug('Calculated hours for shift', [
-                                'shift_id' => $shift->id,
-                                'user_id' => $item->user_id,
-                                'shift_date' => $shiftDate,
-                                'clock_in' => $clockInTime,
-                                'clock_out' => $clockOutTime,
-                                'hours' => $hours,
-                            ]);
                         } catch (\Exception $e) {
                             Log::warning('Error calculating hours for shift ' . $shift->id . ': ' . $e->getMessage(), [
                                 'shift_date' => $shift->shift_date ?? 'null',

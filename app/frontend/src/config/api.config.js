@@ -163,6 +163,8 @@ export const API_CONFIG = {
       CREATE_OUTLET: '/v1/settings/outlets',
       PAYMENT_METHODS: '/v1/settings/payment-methods',
       UPDATE_PAYMENT_METHODS: '/v1/settings/payment-methods',
+      RECEIPT_FOOTER_MESSAGE: '/v1/settings/receipt-footer-message',
+      UPDATE_RECEIPT_FOOTER_MESSAGE: '/v1/settings/receipt-footer-message',
     },
 
     // Self Service (Public API)

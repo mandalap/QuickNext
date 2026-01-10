@@ -33,14 +33,7 @@ class CategoryController extends Controller
                     // Ensure products_count is always present and is an integer
                     // withCount automatically adds products_count attribute
                     $category->products_count = (int)($category->products_count ?? 0);
-                    
-                    // Debug: Log to ensure products_count is set
-                    \Log::debug('Category products_count', [
-                        'category_id' => $category->id,
-                        'category_name' => $category->name,
-                        'products_count' => $category->products_count,
-                    ]);
-                    
+
                     return $category;
                 });
         });

@@ -219,23 +219,12 @@ const ProductManagementOptimized = () => {
         categoriesResponse.data?.categories ||
         [];
 
-    // Debug: Log categories data to check products_count
-    if (process.env.NODE_ENV === 'development' && normalized.length > 0) {
-      console.log(
-        '📦 Categories raw data from API:',
-        normalized.map(cat => ({
-          id: cat.id,
-          name: cat.name,
-          products_count: cat.products_count,
-          product_count: cat.product_count,
-          count: cat.count,
-          allKeys: Object.keys(cat),
-          fullData: cat, // Log full object for debugging
-        }))
-      );
-    }
-
-    return normalized;
+    return normalized.map(cat => ({
+      product_count: cat.product_count,
+      count: cat.count,
+      allKeys: Object.keys(cat),
+      fullData: cat, // Log full object for debugging
+    }));
   }, [categoriesResponse]);
 
   // Show toast when there's an error loading categories
@@ -300,21 +289,6 @@ const ProductManagementOptimized = () => {
         productCount = countFromProducts;
       }
 
-      // Debug log untuk melihat data yang diterima
-      if (process.env.NODE_ENV === 'development') {
-        console.log('📦 Category data:', {
-          id: cat.id,
-          name: cat.name,
-          products_count: cat.products_count,
-          product_count: cat.product_count,
-          count: cat.count,
-          countFromBackend:
-            cat.products_count ?? cat.product_count ?? cat.count,
-          countFromProducts: productCountByCategory[cat.id],
-          finalCount: productCount,
-          rawCategory: cat, // Log seluruh object untuk debugging
-        });
-      }
 
       return {
         ...cat,
@@ -785,20 +759,11 @@ const ProductManagementOptimized = () => {
   const saveProductMutation = useMutation({
     mutationFn: async data => {
       if (isEditingProduct) {
-        const result = await productService.update(productFormData.id, data);
-        // ✅ DEBUG: Log response untuk troubleshooting
-        console.log('📦 Update response:', result);
-        return result;
+        return await productService.update(productFormData.id, data);
       }
-      const result = await productService.create(data);
-      // ✅ DEBUG: Log response untuk troubleshooting
-      console.log('📦 Create response:', result);
-      return result;
+      return await productService.create(data);
     },
     onSuccess: async response => {
-      // ✅ DEBUG: Log success response
-      console.log('✅ Save success, response:', response);
-
       // Clear cache first to ensure fresh data
       removeCache(`${CACHE_KEYS.CATEGORIES}_all`);
       removeCache(`${CACHE_KEYS.PRODUCTS}_${currentBusiness?.id}`);
@@ -978,14 +943,6 @@ const ProductManagementOptimized = () => {
   ]);
 
   const handleEditProduct = useCallback(product => {
-    // ✅ DEBUG: Log product data untuk troubleshooting
-    console.log('📦 Editing product:', {
-      id: product.id,
-      name: product.name,
-      stock_type: product.stock_type,
-      stock: product.stock,
-      fullProduct: product,
-    });
 
     // Determine discount type based on existing discount data
     let discountType = 'none';
@@ -1203,57 +1160,6 @@ const ProductManagementOptimized = () => {
       formData.append('image', productImage);
     }
     // If productImage is a string (URL), don't append it - backend will keep existing image
-
-    // ✅ DEBUG: Log formData untuk troubleshooting
-    console.log('📦 Saving product with data:', {
-      stock_type: submitData.stock_type,
-      stock: submitData.stock,
-      name: submitData.name,
-      isEditing: isEditingProduct,
-      productId: productFormData.id,
-      productFormData_stock_type: productFormData.stock_type,
-      submitData_stock_type: submitData.stock_type,
-    });
-
-    // ✅ DEBUG: Log FormData entries
-    console.log('📦 FormData entries:');
-    const formDataEntries = {};
-    for (let pair of formData.entries()) {
-      console.log(`  ${pair[0]}: ${pair[1]} (type: ${typeof pair[1]})`);
-      formDataEntries[pair[0]] = pair[1];
-    }
-
-    // ✅ DEBUG: Verify stock_type is in FormData
-    const stockTypeInFormData = formData.get('stock_type');
-    console.log('📦 Verifying stock_type in FormData:', {
-      stock_type_value: stockTypeInFormData,
-      expected: submitData.stock_type,
-      stockTypeValue: stockTypeValue,
-      match: stockTypeInFormData === submitData.stock_type,
-      isUpdate: isEditingProduct,
-      allFormDataEntries: formDataEntries,
-    });
-
-    // ✅ DEBUG: Verify required fields
-    console.log('📦 Required fields check:', {
-      name: formData.get('name'),
-      category_id: formData.get('category_id'),
-      price: formData.get('price'),
-      stock_type: formData.get('stock_type'),
-      stock: formData.get('stock'),
-      hasAllRequired: !!(
-        formData.get('name') &&
-        formData.get('category_id') &&
-        formData.get('price') &&
-        formData.get('stock_type')
-      ),
-    });
-
-    // ✅ DEBUG: If update, log the product ID for backend tracking
-    if (isEditingProduct) {
-      console.log('📦 UPDATE MODE - Product ID:', productFormData.id);
-      console.log('📦 UPDATE MODE - Full submitData:', submitData);
-    }
 
     saveProductMutation.mutate(formData);
   }, [productFormData, productImage, saveProductMutation]);

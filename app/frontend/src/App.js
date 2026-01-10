@@ -218,7 +218,7 @@ function App() {
             .register('/service-worker.js', {
               scope: '/',
             })
-            .then(registration => {
+        .then(registration => {
           if (registrationTimeout) {
             clearTimeout(registrationTimeout);
           }
@@ -241,11 +241,11 @@ function App() {
                 ) {
                   // Service worker file might not be available or network issue
                   // This is normal in development and can be safely ignored
-                  if (process.env.NODE_ENV === 'development') {
+                if (process.env.NODE_ENV === 'development') {
                     console.debug('⚠️ Service Worker update skipped (development mode)');
                   }
-                  return;
-                }
+                    return;
+                  }
                 // Only log unexpected errors
                 if (process.env.NODE_ENV === 'development') {
                   console.warn('⚠️ Service Worker update failed:', updateError);
@@ -334,10 +334,10 @@ function App() {
                 '❌ Service Worker registration failed: SecurityError - HTTPS required or invalid scope'
               );
             } else if (error.name === 'TypeError') {
-              console.error(
-                '❌ Service Worker registration failed: TypeError - Invalid service worker file',
-                error
-              );
+                console.error(
+                  '❌ Service Worker registration failed: TypeError - Invalid service worker file',
+                  error
+                );
             } else {
               console.error('❌ Service Worker registration failed:', {
                 name: error.name,

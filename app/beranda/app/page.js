@@ -582,12 +582,12 @@ export default function LandingPage() {
                 >
                   Harga
                 </button>
-                <button
+                {/* <button
                   onClick={() => scrollToSection("demo")}
                   className="text-sm font-medium hover:text-primary transition-colors"
                 >
                   Demo
-                </button>
+                </button> */}
                 <button
                   onClick={() => scrollToSection("contact")}
                   className="text-sm font-medium hover:text-primary transition-colors"
@@ -662,12 +662,12 @@ export default function LandingPage() {
                 >
                   Harga
                 </button>
-                <button
+                {/* <button
                   onClick={() => scrollToSection("demo")}
                   className="block w-full text-left py-2 hover:text-primary transition-colors"
                 >
                   Demo
-                </button>
+                </button> */}
                 <button
                   onClick={() => scrollToSection("contact")}
                   className="block w-full text-left py-2 hover:text-primary transition-colors"
@@ -725,7 +725,7 @@ export default function LandingPage() {
                       Coba Gratis 14 Hari
                     </Button>
                   </motion.div>
-                  <motion.div
+                  {/* <motion.div
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                   >
@@ -737,7 +737,7 @@ export default function LandingPage() {
                     >
                       Lihat Demo
                     </Button>
-                  </motion.div>
+                  </motion.div> */}
                 </div>
                 <div className="mt-8 flex items-center space-x-6">
                   <div>
@@ -1274,7 +1274,7 @@ export default function LandingPage() {
         </section>
 
         {/* Demo Video Section */}
-        <section
+        {/* <section
           id="demo"
           className="py-20 px-4 bg-gradient-to-b from-background to-emerald-50 dark:to-gray-900"
         >
@@ -1325,7 +1325,7 @@ export default function LandingPage() {
               </div>
             </motion.div>
           </div>
-        </section>
+        </section> */}
 
         {/* FAQ Section */}
         <section className="py-20 px-4 bg-background">
@@ -1411,7 +1411,7 @@ export default function LandingPage() {
                     className="bg-emerald-500 text-white hover:bg-emerald-600 active:bg-emerald-700 border-2 border-emerald-400 hover:border-emerald-500 text-lg px-8 shadow-lg hover:shadow-xl transition-all duration-300"
                     onClick={() => {
                       // Bisa diarahkan ke WhatsApp atau email
-                      window.open("https://wa.me/6281234567890", "_blank");
+                      window.open("https://wa.me/6282197060927", "_blank");
                     }}
                   >
                     Hubungi Sales
@@ -1493,11 +1493,11 @@ export default function LandingPage() {
                       Harga
                     </a>
                   </li>
-                  <li>
+                  {/* <li>
                     <a href="#" className="hover:text-white transition-colors">
                       Demo
                     </a>
-                  </li>
+                  </li> */}
                   <li>
                     <a href="#" className="hover:text-white transition-colors">
                       Integrasi
@@ -1549,11 +1549,11 @@ export default function LandingPage() {
                 <ul className="space-y-3 text-sm">
                   <li className="flex items-center space-x-2">
                     <FiPhone className="w-4 h-4" />
-                    <span>+62 812-3456-7890</span>
+                    <span>+62 821-9706-0927</span>
                   </li>
                   <li className="flex items-center space-x-2">
                     <FiMail className="w-4 h-4" />
-                    <span>info@bizmanager.id</span>
+                    <span>quickkasir@gmail.com</span>
                   </li>
                   <li className="flex items-center space-x-2">
                     <FiMapPin className="w-4 h-4" />
@@ -1586,7 +1586,7 @@ export default function LandingPage() {
 
         {/* Floating WhatsApp Button */}
         <motion.a
-          href="https://wa.me/6281234567890"
+          href="https://wa.me/6282197060927"
           target="_blank"
           rel="noopener noreferrer"
           className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-green-500 rounded-full flex items-center justify-center text-white shadow-2xl hover:bg-green-600 transition-colors"

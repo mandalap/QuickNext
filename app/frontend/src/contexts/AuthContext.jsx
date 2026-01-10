@@ -33,10 +33,7 @@ const setSubscriptionCache = value => {
 
   // Verify it was actually set
   const verified = localStorage.getItem('hasActiveSubscription');
-
-  console.log('💾 setSubscriptionCache:', {
-    value,
-    cacheValue,
+  console.log({
     verified,
     timestamp: Date.now(),
   });
@@ -54,23 +51,13 @@ const setSubscriptionCache = value => {
 const getSubscriptionCache = () => {
   try {
     const cached = localStorage.getItem('hasActiveSubscription');
-    // ✅ DEBUG: Log only in development
-    if (process.env.NODE_ENV === 'development') {
-      console.log('📦 getSubscriptionCache:', cached);
-    }
     return cached === 'true';
   } catch (e) {
-    if (process.env.NODE_ENV === 'development') {
-      console.warn('Error reading subscription cache:', e);
-    }
     return false;
   }
 };
 
 export const AuthProvider = ({ children }) => {
-  // ✅ DEBUG: Log on component mount
-  console.log('🚀 AuthProvider: Component mounted/rendered');
-
   // ✅ OPTIMIZATION: Load user from localStorage immediately for instant UI (like Facebook)
   // ✅ SECURITY: Validate user ID to prevent cache leakage between users
   const getCachedUser = () => {
@@ -382,13 +369,6 @@ export const AuthProvider = ({ children }) => {
       if (process.env.NODE_ENV === 'development') {
         console.warn('Failed to load cached subscription status:', e);
       }
-    }
-    // ✅ FIX: Default to false, but log it so we know cache wasn't found
-    // ✅ DEBUG: Log only in development
-    if (process.env.NODE_ENV === 'development') {
-      console.log(
-        '📦 No cached subscription status found, defaulting to false'
-      );
     }
     return false;
   };
@@ -1248,10 +1228,6 @@ export const AuthProvider = ({ children }) => {
     try {
       // For kasir role, load only assigned outlets
       if (user?.role === 'kasir') {
-        console.log('🔍 loadOutlets: Loading assigned outlets for kasir...');
-        console.log('🔍 loadOutlets: User ID:', user.id);
-        console.log('🔍 loadOutlets: Business ID:', currentBusiness.id);
-
         // ✅ FIX: Add timeout wrapper to prevent stuck
         const loadPromise = employeeOutletService.getMyOutlets();
         const timeoutPromise = new Promise((_, reject) => {
@@ -1262,7 +1238,6 @@ export const AuthProvider = ({ children }) => {
         });
 
         const result = await Promise.race([loadPromise, timeoutPromise]);
-        console.log('🔍 loadOutlets: Assigned outlets result:', result);
 
         if (result.success && result.data) {
           // Extract outlet data from assignments
@@ -1272,12 +1247,6 @@ export const AuthProvider = ({ children }) => {
           setOutlets(assignedOutlets);
           // ✅ FIX: Cache outlets to localStorage for instant load on reload
           localStorage.setItem('outlets', JSON.stringify(assignedOutlets));
-          console.log('🔍 loadOutlets: Set assigned outlets:', assignedOutlets);
-          console.log(
-            '🔍 loadOutlets: Assigned outlets count:',
-            assignedOutlets.length
-          );
-          console.log('🔍 loadOutlets: First outlet:', assignedOutlets[0]);
 
           // ✅ FIX: Clear old cached outlet first to prevent stale data
           const cachedOutlet = localStorage.getItem('currentOutlet');
@@ -1368,17 +1337,6 @@ export const AuthProvider = ({ children }) => {
             );
           }
         } else {
-          console.log('🔍 loadOutlets: No assigned outlets found');
-          console.log('🔍 loadOutlets: Result data:', result.data);
-          console.log('🔍 loadOutlets: Result success:', result.success);
-          console.log('🔍 loadOutlets: Full result:', result);
-          console.log('🔍 loadOutlets: Result type:', typeof result);
-          console.log('🔍 loadOutlets: Result keys:', Object.keys(result));
-          console.log('🔍 loadOutlets: Result.data type:', typeof result.data);
-          console.log(
-            '🔍 loadOutlets: Result.data length:',
-            result.data?.length
-          );
           setOutlets([]);
           setCurrentOutlet(null);
         }
@@ -1387,16 +1345,10 @@ export const AuthProvider = ({ children }) => {
         // ✅ FIX: Skip loading outlets if no business ID (e.g., after payment, before business setup)
         const businessId = localStorage.getItem('currentBusinessId');
         if (!businessId) {
-          console.log('🔍 loadOutlets: No business ID, skipping outlet load');
           setOutlets([]);
           setCurrentOutlet(null);
           return;
         }
-
-        console.log(
-          '🔍 loadOutlets: Loading all outlets for role:',
-          user?.role
-        );
 
         // ✅ FIX: Add timeout wrapper to prevent stuck
         const loadPromise = outletService.getAll();
@@ -1418,7 +1370,6 @@ export const AuthProvider = ({ children }) => {
           setOutlets(result.data);
           // ✅ FIX: Cache outlets to localStorage for instant load on reload
           localStorage.setItem('outlets', JSON.stringify(result.data));
-          console.log('🔍 loadOutlets: Outlets set:', result.data);
 
           // ✅ FIX: Clear old cached outlet first to prevent stale data
           const cachedOutlet = localStorage.getItem('currentOutlet');
@@ -1452,19 +1403,14 @@ export const AuthProvider = ({ children }) => {
               o => o.id === parseInt(savedOutletId)
             );
             if (outlet) {
-              console.log('🔍 loadOutlets: Found saved outlet:', outlet);
               setCurrentOutlet(outlet);
               // ✅ FIX: Cache current outlet to localStorage for instant load on reload
               localStorage.setItem('currentOutlet', JSON.stringify(outlet));
             } else {
               // ✅ FIX: Saved outlet ID not found, clear cache and use first outlet
-              console.log(
-                '⚠️ loadOutlets: Saved outlet ID not found in outlets, clearing cache and using first outlet'
-              );
               localStorage.removeItem('currentOutletId');
               localStorage.removeItem('currentOutlet');
               if (result.data.length > 0) {
-                console.log('🔍 loadOutlets: Using first outlet as fallback');
                 setCurrentOutlet(result.data[0]);
                 localStorage.setItem('currentOutletId', result.data[0].id);
                 localStorage.setItem(
@@ -1475,7 +1421,6 @@ export const AuthProvider = ({ children }) => {
             }
           } else if (result.data.length > 0) {
             // Auto-select first outlet for non-kasir roles
-            console.log('🔍 loadOutlets: Auto-selecting first outlet');
             setCurrentOutlet(result.data[0]);
             localStorage.setItem('currentOutletId', result.data[0].id);
             // ✅ FIX: Cache current outlet to localStorage for instant load on reload
@@ -1485,13 +1430,10 @@ export const AuthProvider = ({ children }) => {
             );
           }
         } else {
-          console.log('🔍 loadOutlets: No outlets found');
           setOutlets([]);
           setCurrentOutlet(null);
         }
       }
-
-      console.log('🔍 loadOutlets: Completed successfully');
     } catch (error) {
       // ✅ FIX: Handle timeout gracefully - use cache if available
       if (error.message === 'Outlet load timeout') {
@@ -1504,10 +1446,6 @@ export const AuthProvider = ({ children }) => {
           try {
             const parsed = JSON.parse(cachedOutlet);
             setCurrentOutlet(parsed);
-            console.log(
-              '✅ loadOutlets: Using cached outlet due to timeout:',
-              parsed.name
-            );
             // Don't set outlets array - let it be empty, but at least we have current outlet
             return;
           } catch (e) {
@@ -1931,13 +1869,6 @@ export const AuthProvider = ({ children }) => {
   // Check if user is authenticated on app load
   useEffect(() => {
     const checkAuth = async () => {
-      console.log('🔍 checkAuth: Starting auth check...', {
-        hasTokenState: !!token,
-        hasStoredToken: !!localStorage.getItem('token'),
-        hasCachedUser: !!localStorage.getItem('user'),
-        hasUserState: !!user,
-      });
-
       // ✅ FIX: Check localStorage directly in case token state hasn't updated yet
       const storedToken = localStorage.getItem('token');
       const storedUser = localStorage.getItem('user');
@@ -1948,10 +1879,6 @@ export const AuthProvider = ({ children }) => {
       if (storedUser && tokenToUse && !user) {
         try {
           const parsedUser = JSON.parse(storedUser);
-          console.log(
-            '🔍 checkAuth: Using cached user immediately:',
-            parsedUser.id
-          );
           setUser(parsedUser);
           if (!token) {
             setToken(tokenToUse);
@@ -1963,7 +1890,6 @@ export const AuthProvider = ({ children }) => {
 
       // Only proceed if we have a token
       if (!tokenToUse) {
-        console.log('🔍 checkAuth: No token found, user not authenticated');
         setLoading(false);
         // ✅ CRITICAL: Set cache to false if no token
         setSubscriptionCache(false);
@@ -1973,7 +1899,6 @@ export const AuthProvider = ({ children }) => {
 
       // ✅ FIX: Use stored token if state token is null
       if (!token && storedToken) {
-        console.log('🔍 checkAuth: Using stored token from localStorage');
         setToken(storedToken);
         // ✅ CRITICAL: Set axios header immediately
         axios.defaults.headers.common[
@@ -1993,21 +1918,10 @@ export const AuthProvider = ({ children }) => {
         // This prevents 403 errors when API calls are made
         if (currentBusiness && currentBusiness.id) {
           localStorage.setItem('currentBusinessId', currentBusiness.id);
-          console.log(
-            '✅ Set business ID from cache before API calls:',
-            currentBusiness.id
-          );
         }
 
         // ✅ STEP 1: Verify subscription cache exists
         const cachedSub = getSubscriptionCache();
-
-        console.log('🔍 checkAuth (cached user):', {
-          hasUser: true,
-          cachedSub,
-          hasActiveSubscription,
-          cacheValue: localStorage.getItem('hasActiveSubscription'),
-        });
 
         // ✅ STEP 2: If cache exists and is TRUE, use it IMMEDIATELY (no API call)
         // CRITICAL: Set state IMMEDIATELY so ProtectedRoute can use it

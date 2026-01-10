@@ -774,6 +774,17 @@ class POSController extends Controller
                 'payments'
             ]);
 
+            // Get custom footer message from outlet setting
+            $footerMessage = '';
+            if ($order->outlet_id) {
+                $footerSetting = \App\Models\OutletSetting::where('outlet_id', $order->outlet_id)
+                    ->where('setting_key', 'receipt_footer_message')
+                    ->first();
+                if ($footerSetting) {
+                    $footerMessage = $footerSetting->setting_value;
+                }
+            }
+
             // Generate comprehensive receipt data
             $receipt = [
                 'order' => [
@@ -842,7 +853,8 @@ class POSController extends Controller
                 'print_info' => [
                     'printed_at' => now()->format('Y-m-d H:i:s'),
                     'receipt_number' => 'RCP-' . str_pad($order->id, 6, '0', STR_PAD_LEFT),
-                ]
+                ],
+                'custom_footer_message' => $footerMessage
             ];
 
             \Log::info('POSController: Print receipt data generated', [

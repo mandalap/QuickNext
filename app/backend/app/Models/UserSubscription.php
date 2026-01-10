@@ -57,6 +57,7 @@ class UserSubscription extends Model
     // Helper method to check if subscription is active
     public function isActive(): bool
     {
+        if (!$this->ends_at) return false;
         return $this->status === 'active' && $this->ends_at > Carbon::now();
     }
 
@@ -71,6 +72,7 @@ class UserSubscription extends Model
     // Helper method to get days remaining
     public function daysRemaining(): float
     {
+        if (!$this->ends_at) return 0;
         if ($this->ends_at < Carbon::now()) return 0;
         $days = Carbon::now()->diffInDays($this->ends_at, false);
         // Round to 1 decimal place for better display

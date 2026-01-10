@@ -72,11 +72,11 @@ class PayrollController extends Controller
             });
         } else {
             // Fallback to year/month filter for backward compatibility
-            if ($request->has('year')) {
-                $query->where('year', $request->year);
-            }
-            if ($request->has('month')) {
-                $query->where('month', $request->month);
+        if ($request->has('year')) {
+            $query->where('year', $request->year);
+        }
+        if ($request->has('month')) {
+            $query->where('month', $request->month);
             }
         }
 
@@ -482,8 +482,8 @@ class PayrollController extends Controller
             });
         } else {
             // Fallback to year/month filter for backward compatibility
-            $year = $request->get('year', date('Y'));
-            $month = $request->get('month', date('m'));
+        $year = $request->get('year', date('Y'));
+        $month = $request->get('month', date('m'));
             $baseQuery->where('year', $year)->where('month', $month);
         }
 

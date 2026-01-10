@@ -25,9 +25,9 @@
     height: auto;
     margin: 0;
     padding: 0;
-    font-family: 'Courier New', monospace;
-    font-size: 10pt;
-    line-height: 1.2;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 11pt;
+    line-height: 1.4;
     color: #000;
     background: #fff;
   }
@@ -41,7 +41,7 @@
   button,
   .print\\:hidden,
   [data-dialog-overlay],
-  [role="dialog"] > * > button,
+  [role='dialog'] > * > button,
   dialog,
   .dialog-overlay,
   .dialog-header,
@@ -66,168 +66,293 @@
     width: 100%;
     max-width: 80mm;
     margin: 0 auto;
-    padding: 0;
+    padding: 5mm 3mm;
     background: #fff;
     color: #000;
-    font-family: 'Courier New', monospace;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
   }
 
   /* Header */
-  .receipt-content h2 {
-    font-size: 14pt;
-    font-weight: bold;
+  .receipt-header {
+    margin-bottom: 8pt;
+    padding-bottom: 4pt;
+  }
+
+  .receipt-title {
+    font-size: 16pt;
+    font-weight: 700;
     text-align: center;
     margin-bottom: 4pt;
     text-transform: uppercase;
+    line-height: 1.3;
+    letter-spacing: 0.3pt;
   }
 
-  .receipt-content p {
-    font-size: 9pt;
+  .receipt-address,
+  .receipt-contact {
+    font-size: 10pt;
     text-align: center;
     margin: 2pt 0;
+    line-height: 1.5;
   }
 
   /* Divider */
-  .receipt-content hr,
-  .receipt-content .border-t,
-  .receipt-content .border-b {
+  .receipt-divider {
     border-top: 1px dashed #000;
+    margin: 8pt 0;
+    height: 0;
+    width: 100%;
     border-bottom: none;
-    margin: 4pt 0;
   }
 
-  /* Transaction Info - Each line on separate row */
-  .receipt-content .space-y-1 > div,
-  .receipt-content .space-y-0\.5 > div {
-    margin-bottom: 2pt;
-    line-height: 1.4;
+  /* Transaction Info */
+  .receipt-info {
+    margin-bottom: 8pt;
   }
 
-  .receipt-content .space-y-1 > div:last-child,
-  .receipt-content .space-y-0\.5 > div:last-child {
+  .receipt-info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 10pt;
+    line-height: 1.6;
+    margin-bottom: 4pt;
+  }
+
+  .receipt-info-row:last-child {
     margin-bottom: 0;
   }
 
-  /* Items Table - Use table layout for strict column control */
-  .receipt-content table.receipt-items-table {
+  .receipt-info-label {
+    font-weight: 500;
+    min-width: 80pt;
+    flex-shrink: 0;
+    margin-right: 8pt;
+  }
+
+  .receipt-info-value {
+    text-align: right;
+    flex: 1;
+    white-space: nowrap;
+    font-weight: 400;
+  }
+
+  /* Items Table */
+  .receipt-items {
+    margin-bottom: 8pt;
+  }
+
+  .receipt-items-table {
     width: 100%;
     border-collapse: collapse;
     table-layout: fixed;
+    font-size: 10pt;
   }
 
-  .receipt-content table.receipt-items-table th,
-  .receipt-content table.receipt-items-table td {
-    font-size: 9pt;
-    padding: 2pt;
-    vertical-align: top;
+  .receipt-table-header {
+    border-bottom: 1px solid #000;
   }
 
-  .receipt-content table.receipt-items-table th {
-    font-weight: bold;
-  }
-
-  /* Fixed column widths - prevent overlap */
-  /* Total: ~62mm untuk kolom (leaving 18mm untuk item name di 80mm printer) */
-  .receipt-content table.receipt-items-table .receipt-col-item {
-    width: auto !important; /* Item name - takes remaining space */
-    min-width: 0;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-    padding-right: 3pt;
-  }
-
-  .receipt-content table.receipt-items-table .receipt-col-qty {
-    width: 10mm !important; /* QTY */
-    min-width: 10mm !important;
-    max-width: 10mm !important;
-    text-align: center;
-  }
-
-  .receipt-content table.receipt-items-table .receipt-col-price {
-    width: 26mm !important; /* HARGA - enough untuk "Rp 150.000" */
-    min-width: 26mm !important;
-    max-width: 26mm !important;
-    white-space: nowrap !important;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    text-align: right;
-    padding-right: 3pt;
-  }
-
-  .receipt-content table.receipt-items-table .receipt-col-subtotal {
-    width: 28mm !important; /* SUBTOTAL - enough untuk "Rp 150.000" */
-    min-width: 28mm !important;
-    max-width: 28mm !important;
-    white-space: nowrap !important;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    text-align: right;
-  }
-
-  /* Flexbox fallback for screen view */
-  .receipt-content .flex {
-    display: flex;
-    width: 100%;
-    align-items: flex-start;
-  }
-
-  .receipt-content .flex.justify-between {
-    justify-content: space-between;
-    gap: 4pt;
-  }
-
-  /* Text Alignment */
-  .text-center {
-    text-align: center;
-  }
-
-  .text-right {
-    text-align: right;
-  }
-
-  .text-left {
+  .receipt-table-header th {
+    font-weight: 600;
+    padding: 5pt 2pt;
+    font-size: 10pt;
     text-align: left;
   }
 
-  /* Prevent text overflow and overlap */
-  .truncate {
-    overflow: hidden;
-    text-overflow: ellipsis;
+  .receipt-table-header th.receipt-col-qty {
+    text-align: center !important;
+  }
+
+  .receipt-table-header th.receipt-col-price,
+  .receipt-table-header th.receipt-col-subtotal {
+    text-align: right !important;
+  }
+
+  .receipt-table-row {
+    border-bottom: 1px dashed #ccc;
+  }
+
+  .receipt-table-row:last-child {
+    border-bottom: none;
+  }
+
+  .receipt-table-row td {
+    padding: 5pt 2pt;
+    vertical-align: top;
+    font-size: 10pt;
+    line-height: 1.5;
+  }
+
+  /* Fixed column widths - optimized for 80mm */
+  .receipt-col-item {
+    width: 45% !important;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    padding-right: 2pt !important;
+  }
+
+  .receipt-col-qty {
+    width: 10% !important;
+    text-align: center !important;
+    padding: 0 1pt !important;
+  }
+
+  .receipt-col-price {
+    width: 22% !important;
+    text-align: right !important;
     white-space: nowrap;
+    padding-left: 2pt !important;
+    padding-right: 2pt !important;
   }
 
-  /* Ensure proper spacing between columns - using gap instead of margin */
-  .receipt-content .flex.justify-between {
-    gap: 3pt;
-  }
-
-  /* Prevent text overflow in price columns */
-  .receipt-content .text-right {
-    overflow: hidden;
-    text-overflow: ellipsis;
+  .receipt-col-subtotal {
+    width: 23% !important;
+    text-align: right !important;
     white-space: nowrap;
+    padding-left: 2pt !important;
   }
 
-  /* Ensure item name doesn't overflow */
-  .receipt-content .flex-1 {
-    max-width: calc(100% - 70mm); /* Reserve space for other columns */
-    overflow: hidden;
-    text-overflow: ellipsis;
+  .receipt-item-name {
+    font-weight: 500;
+    line-height: 1.4;
+    word-break: break-word;
+    hyphens: auto;
   }
 
-  /* Totals */
-  .receipt-content .font-bold {
+  .receipt-item-variant {
+    font-size: 9pt;
+    color: #555;
+    line-height: 1.3;
+    margin-top: 2pt;
+    font-style: normal;
+    font-weight: 400;
+  }
+
+  .receipt-text-center {
+    text-align: center !important;
+  }
+
+  .receipt-text-right {
+    text-align: right !important;
+  }
+
+  .receipt-text-bold {
     font-weight: bold;
   }
 
-  .receipt-content .text-lg {
-    font-size: 11pt;
+  /* Totals */
+  .receipt-totals {
+    margin-bottom: 8pt;
+  }
+
+  .receipt-total-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 10pt;
+    line-height: 1.6;
+    margin-bottom: 4pt;
+  }
+
+  .receipt-total-row:last-child {
+    margin-bottom: 0;
+  }
+
+  .receipt-total-label {
+    font-weight: 500;
+    flex: 1;
+    margin-right: 8pt;
+  }
+
+  .receipt-total-value {
+    text-align: right;
+    font-weight: 500;
+    min-width: 80pt;
+    white-space: nowrap;
+  }
+
+  .receipt-discount {
+    color: #000;
+  }
+
+  .receipt-total-final {
+    border-top: 2px solid #000;
+    padding-top: 4pt;
+    margin-top: 4pt;
+    font-weight: 700;
+    font-size: 12pt;
+  }
+
+  .receipt-total-final .receipt-total-label,
+  .receipt-total-final .receipt-total-value {
+    font-weight: 700;
+  }
+
+  /* Payments */
+  .receipt-payments {
+    margin-bottom: 8pt;
+  }
+
+  .receipt-payment-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 10pt;
+    line-height: 1.6;
+    margin-bottom: 4pt;
+  }
+
+  .receipt-payment-row:last-child {
+    margin-bottom: 0;
+  }
+
+  .receipt-payment-label {
+    font-weight: 500;
+    flex: 1;
+    margin-right: 8pt;
+  }
+
+  .receipt-payment-value {
+    text-align: right;
+    font-weight: 500;
+    min-width: 80pt;
+    white-space: nowrap;
+  }
+
+  .receipt-change {
+    font-weight: 600;
+    margin-top: 4pt;
+    padding-top: 4pt;
+    border-top: 1px dashed #000;
+  }
+
+  .receipt-change .receipt-payment-label,
+  .receipt-change .receipt-payment-value {
+    font-weight: 600;
   }
 
   /* Footer */
-  .receipt-content .text-center p {
+  .receipt-footer {
+    text-align: center;
+    margin-top: 8pt;
+    padding-top: 4pt;
+  }
+
+  .receipt-footer-text {
+    font-size: 9pt;
+    margin: 4pt 0;
+    line-height: 1.6;
+    font-weight: 400;
+  }
+
+  .receipt-footer-print {
     font-size: 8pt;
-    margin: 3pt 0;
+    margin-top: 6pt;
+    color: #666;
+    padding-top: 4pt;
+    border-top: 1px dashed #ccc;
+    font-weight: 400;
   }
 
   /* Prevent page breaks */
@@ -277,7 +402,7 @@
   }
 
   /* Dialog print styles */
-  [role="dialog"],
+  [role='dialog'],
   dialog {
     display: none !important;
   }
@@ -303,7 +428,7 @@
   ::-webkit-scrollbar {
     display: none;
   }
-  
+
   * {
     scroll-behavior: auto !important;
   }
@@ -317,10 +442,56 @@
     padding: 10mm;
     background: #fff;
     color: #000;
-    font-family: 'Courier New', monospace;
-    font-size: 10pt;
-    line-height: 1.2;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 11pt;
+    line-height: 1.4;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  }
+
+  /* Apply same styles for screen preview */
+  .receipt-header {
+    margin-bottom: 12px;
+  }
+
+  .receipt-title {
+    font-size: 18px;
+    margin-bottom: 8px;
+  }
+
+  .receipt-address,
+  .receipt-contact {
+    font-size: 11px;
+    margin: 4px 0;
+  }
+
+  .receipt-divider {
+    margin: 12px 0;
+  }
+
+  .receipt-info-row,
+  .receipt-total-row,
+  .receipt-payment-row {
+    font-size: 11px;
+    margin-bottom: 4px;
+  }
+
+  .receipt-items-table {
+    font-size: 11px;
+  }
+
+  .receipt-table-header th,
+  .receipt-table-row td {
+    padding: 6px 4px;
+  }
+
+  .receipt-footer-text {
+    font-size: 10px;
+    margin: 4px 0;
+  }
+
+  .receipt-footer-print {
+    font-size: 9px;
+    margin-top: 8px;
   }
 
   /* For smaller preview */

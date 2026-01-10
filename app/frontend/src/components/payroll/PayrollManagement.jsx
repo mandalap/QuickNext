@@ -80,7 +80,7 @@ const PayrollManagement = () => {
           dataLength: Array.isArray(result.data) ? result.data.length : 'N/A',
           result,
         });
-
+        
         // Handle different response structures
         if (result.success !== false) {
           // Case 1: result.data is an array
@@ -102,14 +102,14 @@ const PayrollManagement = () => {
             return [result.data];
           }
         }
-
+        
         if (result.success === false) {
           console.warn(
             '⚠️ PayrollManagement: API returned error:',
             result.error || result.message
           );
         }
-
+        
         return [];
       } catch (error) {
         console.error('❌ PayrollManagement: Error fetching employees', error);
@@ -125,39 +125,19 @@ const PayrollManagement = () => {
   // Extract employees with proper handling
   const employees = useMemo(() => {
     if (!employeesData) return [];
-
+    
     if (Array.isArray(employeesData)) {
       return employeesData;
     }
-
+    
     if (employeesData && typeof employeesData === 'object') {
       if (Array.isArray(employeesData.data)) {
         return employeesData.data;
       }
     }
-
+    
     return [];
   }, [employeesData]);
-
-  // Debug: Log employees when they change
-  useEffect(() => {
-    if (currentBusiness?.id) {
-      console.log('📋 PayrollManagement: Employees state', {
-        employeesCount: employees.length,
-        employeesLoading,
-        currentBusinessId: currentBusiness.id,
-        employeesDataExists: !!employeesData,
-        employeesDataType: Array.isArray(employeesData)
-          ? 'array'
-          : typeof employeesData,
-        employees: employees.map(emp => ({
-          id: emp.id,
-          name: emp.name || emp.user?.name,
-          is_active: emp.is_active,
-        })),
-      });
-    }
-  }, [employees, employeesLoading, currentBusiness?.id, employeesData]);
 
   // Get payrolls list
   const {
@@ -279,14 +259,9 @@ const PayrollManagement = () => {
   const payrolls = Array.isArray(payrollsData) ? payrollsData : [];
   const stats = statsData && typeof statsData === 'object' ? statsData : {};
 
-  // Debug: Log payrolls data
   useEffect(() => {
-    if (currentBusiness?.id) {
-      console.log('📋 PayrollManagement: Payrolls state', {
-        payrollsDataExists: payrollsData !== undefined,
-        payrollsDataType: Array.isArray(payrollsData)
-          ? 'array'
-          : typeof payrollsData,
+    if (payrolls.length > 0 || payrollsLoading) {
+      console.log({
         payrollsCount: payrolls.length,
         payrollsLoading,
         hasPayrollsData,
@@ -425,18 +400,18 @@ const PayrollManagement = () => {
   // Loading state
   // Check if query is enabled
   const isQueryEnabled = !!currentBusiness?.id;
-
+  
   // Show skeleton during initial load only:
   // 1. Query is enabled
   // 2. Payrolls data is still loading AND no data received yet (most important data)
   // 3. OR if no data has been received at all (first time load)
   const isLoading = payrollsLoading || employeesLoading || statsLoading;
-
+  
   // Only show skeleton if:
   // - Query is enabled AND
   // - (Payrolls is still loading AND no payrolls data yet) OR
   // - (No data received at all - first time load)
-  const isInitialLoad =
+  const isInitialLoad = 
     isQueryEnabled &&
     ((payrollsLoading && !hasPayrollsData) || // Payrolls still loading and no data yet
       (!hasPayrollsData && !hasStatsData && !hasEmployeesData)); // No data at all (first load)
@@ -597,7 +572,7 @@ const PayrollManagement = () => {
                     }
                     className='w-full'
                   />
-                </div>
+            </div>
                 <span className='text-gray-400 mb-2'>-</span>
                 <div className='flex-1'>
                   <label className='text-xs text-gray-500 mb-1 block'>
@@ -775,17 +750,7 @@ const PayrollManagement = () => {
                 </thead>
                 <tbody>
                   {filteredPayrolls.map(payroll => {
-                    // Debug: Check conditions for delete button
                     const canShowDelete = canManage && ['draft', 'calculated', 'cancelled'].includes(payroll.status);
-                    if (process.env.NODE_ENV === 'development' && canManage) {
-                      console.log('🔍 Payroll Delete Button Debug:', {
-                        id: payroll.id,
-                        status: payroll.status,
-                        canManage,
-                        canShowDelete,
-                        employee: payroll.employee?.user?.name || payroll.employee?.name,
-                      });
-                    }
                     return (
                     <tr key={payroll.id} className='border-b hover:bg-gray-50'>
                       <td className='p-3'>
@@ -804,17 +769,17 @@ const PayrollManagement = () => {
                         {new Date(payroll.period_start).toLocaleDateString(
                           'id-ID',
                           {
-                            day: 'numeric',
-                            month: 'short',
+                          day: 'numeric',
+                          month: 'short',
                           }
                         )}{' '}
                         -{' '}
                         {new Date(payroll.period_end).toLocaleDateString(
                           'id-ID',
                           {
-                            day: 'numeric',
-                            month: 'short',
-                            year: 'numeric',
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
                           }
                         )}
                       </td>
@@ -900,9 +865,9 @@ const PayrollManagement = () => {
                               )}
                             </>
                           )}
-                          </div>
-                        </td>
-                      </tr>
+                        </div>
+                      </td>
+                    </tr>
                     );
                   })}
                 </tbody>

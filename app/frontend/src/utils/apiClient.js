@@ -92,7 +92,6 @@ apiClient.interceptors.request.use(
       // Check cache first (fastest path)
       const cached = requestCache.get(cacheKey);
       if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-        console.log('⏭️ Using cached response:', config.url);
         // Cancel this request and return cached data
         return Promise.reject({
           code: 'ERR_CACHED',
@@ -105,10 +104,6 @@ apiClient.interceptors.request.use(
       // Check if request is already pending
       const pending = pendingRequests.get(cacheKey);
       if (pending) {
-        console.log(
-          '⏭️ Request already pending, cancelling duplicate:',
-          config.url
-        );
         // Cancel this duplicate request
         const cancelTokenSource = axios.CancelToken.source();
         cancelTokenSource.cancel('Duplicate request cancelled');
@@ -153,16 +148,6 @@ apiClient.interceptors.request.use(
       }
     }
 
-    // Log request URL for debugging (only for top-products)
-    if (config.url && config.url.includes('top-products')) {
-      console.log('🌐 API Request:', {
-        method: config.method?.toUpperCase(),
-        url: config.url,
-        baseURL: config.baseURL,
-        fullURL: `${config.baseURL}${config.url}`,
-        headers: config.headers,
-      });
-    }
 
     // ✅ SECURITY: Check token before request
     // Cookie will be sent automatically by browser, but we also support localStorage for backward compatibility
@@ -280,26 +265,18 @@ apiClient.interceptors.request.use(
       // ✅ FIX: Try to get outlet ID from window context if available (PWA fallback)
       if (window.__authContextRef?.currentOutlet?.id) {
         const contextOutletId = window.__authContextRef.currentOutlet.id;
-        console.log('🔍 Using outlet ID from window context:', contextOutletId);
         config.headers['X-Outlet-Id'] = contextOutletId;
         localStorage.setItem('currentOutletId', contextOutletId);
       }
     }
 
-    // Log headers for cashier-closing requests for debugging (only in development)
-    if (
-      process.env.NODE_ENV === 'development' &&
-      config.url &&
-      config.url.includes('cashier-closing')
-    ) {
-      console.log('📡 Cashier Closing API Request:', {
-        url: config.url,
-        method: config.method,
-        headers: {
-          'X-Business-Id': config.headers['X-Business-Id'] || 'NOT SET',
-          'X-Outlet-Id': config.headers['X-Outlet-Id'] || 'NOT SET',
-          Authorization: config.headers.Authorization ? 'SET' : 'NOT SET',
-        },
+    // Debug logging in development mode
+    if (process.env.NODE_ENV === 'development') {
+      console.log({
+        'X-Outlet-Id': config.headers['X-Outlet-Id'] || 'NOT SET',
+        Authorization: config.headers.Authorization ? 'SET' : 'NOT SET',
+      },
+      {
         params: config.params,
       });
     }
@@ -360,20 +337,6 @@ apiClient.interceptors.request.use(
         }
       });
       config.params = cleanParams;
-
-      // Log params for debugging reports endpoint (only in development)
-      if (
-        process.env.NODE_ENV === 'development' &&
-        config.url &&
-        (config.url.includes('/reports/') || config.url.includes('/dashboard/'))
-      ) {
-        console.log('📡 API Request Params (cleaned):', {
-          url: config.url,
-          cleanedParams: config.params,
-          serializedUrl:
-            config.url + '?' + new URLSearchParams(config.params).toString(),
-        });
-      }
     }
 
     return config;
@@ -426,18 +389,6 @@ apiClient.interceptors.response.use(
       }
     }
 
-    // Log successful response for top-products debugging (only in development)
-    if (
-      process.env.NODE_ENV === 'development' &&
-      response.config?.url &&
-      response.config.url.includes('top-products')
-    ) {
-      console.log('✅ API Response:', {
-        status: response.status,
-        url: response.config.url,
-        data: response.data,
-      });
-    }
     return response;
   },
   async error => {
@@ -481,7 +432,6 @@ apiClient.interceptors.response.use(
 
       // For profile check, return cached data or default
       if (error.config?.url?.includes('/profile/check')) {
-        console.log('Using cached/default profile data due to rate limit');
         return Promise.resolve({
           data: {
             profile_complete: true,

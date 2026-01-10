@@ -41,30 +41,13 @@ import ImageUpload from './ImageUpload';
 const ProductManagement = () => {
   const { currentOutlet, currentBusiness, loadBusinesses } = useAuth();
 
-  // Debug: Log currentBusiness whenever it changes
   useEffect(() => {
-    console.log('🔍 ProductManagement - currentBusiness changed:', {
-      id: currentBusiness?.id,
-      name: currentBusiness?.name,
-      business_type_id: currentBusiness?.business_type_id,
-      business_type: currentBusiness?.business_type,
-      requires_stock: currentBusiness?.business_type?.requires_stock,
-      fullBusiness: currentBusiness,
-    });
-
     // If business_type is missing but business_type_id exists, reload business data
     if (
       currentBusiness?.id &&
       currentBusiness?.business_type_id &&
       !currentBusiness?.business_type
     ) {
-      console.warn(
-        '⚠️ Business type missing but business_type_id exists:',
-        currentBusiness.business_type_id
-      );
-      console.warn(
-        '⚠️ Attempting to reload business to get business_type relationship...'
-      );
       // Force reload business to get business_type relationship
       loadBusinesses();
     }
@@ -222,10 +205,7 @@ const ProductManagement = () => {
       }
       // Update stats dari backend
       if (products.stats) {
-        console.log('📊 Backend Stats Received:', products.stats);
         setBackendStats(products.stats);
-      } else {
-        console.warn('⚠️ No stats in response:', products);
       }
     }
   }, [products]);
@@ -423,7 +403,6 @@ const ProductManagement = () => {
 
   // Gunakan stats dari backend (sudah dihitung untuk SEMUA produk, tidak terpengaruh filter & pagination)
   const stats = React.useMemo(() => {
-    console.log('🔢 Current backendStats:', backendStats);
     return {
       total: backendStats.total_all_products || 0,
       lowStock: backendStats.low_stock || 0,

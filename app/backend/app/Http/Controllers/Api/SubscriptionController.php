@@ -3,18 +3,17 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Business;
 use App\Models\SubscriptionPlan;
 use App\Models\SubscriptionPlanPrice;
 use App\Models\UserSubscription;
-use App\Models\Business;
 use App\Services\MidtransService;
-use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class SubscriptionController extends Controller
 {
@@ -82,13 +81,11 @@ class SubscriptionController extends Controller
         ]);
 
         $user = Auth::user();
-        
         // Reload user to get latest data
         $user->refresh();
-        
+
         // Check if user profile is complete before subscribing
         $profileErrors = [];
-        
         if (empty($user->name)) {
             $profileErrors[] = 'Nama lengkap belum diisi. Silakan lengkapi profil Anda terlebih dahulu.';
         }
@@ -98,7 +95,7 @@ class SubscriptionController extends Controller
         if (empty($user->address)) {
             $profileErrors[] = 'Alamat belum diisi. Silakan lengkapi profil Anda terlebih dahulu.';
         }
-        
+
         // Check if WhatsApp is verified
         if (!empty($user->phone)) {
             $isVerified = \App\Models\WhatsappVerification::isPhoneVerified($user->phone);
@@ -106,7 +103,7 @@ class SubscriptionController extends Controller
                 $profileErrors[] = 'Nomor WhatsApp belum diverifikasi. Silakan verifikasi nomor WhatsApp Anda terlebih dahulu.';
             }
         }
-        
+
         if (!empty($profileErrors)) {
             return response()->json([
                 'success' => false,
@@ -161,6 +158,7 @@ class SubscriptionController extends Controller
         }
 
         DB::beginTransaction();
+
         try {
             $startsAt = Carbon::now();
 
@@ -211,7 +209,6 @@ class SubscriptionController extends Controller
                         'subscription_id' => $subscription->id,
                         'subscription_code' => $subscriptionCode,
                     ]);
-
                 } catch (\Exception $e) {
                     Log::error('Failed to create Midtrans snap token', [
                         'subscription_id' => $subscription->id,
@@ -228,17 +225,15 @@ class SubscriptionController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => $isTrial
-                    ? 'Trial subscription activated successfully'
-                    : 'Subscription created. Please proceed with payment.',
+                'message' => $isTrial ? 'Trial subscription activated successfully' : 'Subscription created. Please proceed with payment.',
                 'data' => $subscription->load(['subscriptionPlan', 'subscriptionPlanPrice']),
                 'requires_payment' => !$isTrial,
                 'snap_token' => $snapToken,
                 'client_key' => config('midtrans.client_key'),
             ], 201);
-
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to create subscription',
@@ -253,115 +248,128 @@ class SubscriptionController extends Controller
      */
     public function getCurrentSubscription()
     {
-        $user = Auth::user();
+        try {
+            $user = Auth::user();
+            
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User not authenticated',
+                    'has_subscription' => false,
+                ], 401);
+            }
 
         // Employee roles need to check their business owner's subscription
         $isEmployeeRole = in_array($user->role, ['kasir', 'kitchen', 'waiter', 'admin']);
 
         if ($isEmployeeRole) {
             // ✅ FIX: Don't use cache for now to ensure fresh data when subscription features are changed
-            // Cache key for employee subscription check (5 minutes cache)
-            // $cacheKey = "subscription:employee:{$user->id}";
-            // Cache::forget($cacheKey);
-            
-            // $result = Cache::remember($cacheKey, 300, function() use ($user) {
-            $result = (function() use ($user) {
-            // Get employee's business and check owner's subscription
-            $employee = \App\Models\Employee::where('user_id', $user->id)
-                ->where('is_active', true)
-                ->with(['business.owner.subscriptions' => function($query) {
-                    $query->where('status', 'active')
-                          ->where('ends_at', '>', now())
-                          ->latest();
-                }])
-                ->first();
+            $result = (function () use ($user) {
+                // Get employee's business and check owner's subscription
+                $employee = \App\Models\Employee::where('user_id', $user->id)
+                    ->where('is_active', true)
+                    ->with(['business.owner.subscriptions' => function ($query) {
+                        $query->where('status', 'active')
+                            ->where('ends_at', '>', now())
+                            ->latest();
+                    }])
+                    ->first();
 
-            if (!$employee || !$employee->business) {
+                if (!$employee || !$employee->business) {
                     return [
-                    'success' => false,
-                    'message' => 'Employee not assigned to any business',
-                    'has_subscription' => false,
-                    'subscription_expired' => true,
+                        'success' => false,
+                        'message' => 'Employee not assigned to any business',
+                        'has_subscription' => false,
+                        'subscription_expired' => true,
                         'status_code' => 404,
                     ];
-            }
+                }
 
-            $owner = $employee->business->owner;
-            if (!$owner) {
+                $owner = $employee->business->owner;
+                if (!$owner) {
                     return [
-                    'success' => false,
-                    'message' => 'Business owner not found',
-                    'has_subscription' => false,
-                    'subscription_expired' => true,
+                        'success' => false,
+                        'message' => 'Business owner not found',
+                        'has_subscription' => false,
+                        'subscription_expired' => true,
                         'status_code' => 404,
                     ];
-            }
+                }
 
-            // Check owner's subscription
-            $activeSubscription = $owner->subscriptions()
-                ->where('status', 'active')
-                ->where('ends_at', '>', now())
-                ->with('subscriptionPlan') // ✅ FIX: Eager load subscription plan to get features
-                ->latest()
-                ->first();
+                // Check owner's subscription
+                $activeSubscription = $owner->subscriptions()
+                    ->where('status', 'active')
+                    ->where('ends_at', '>', now())
+                    ->with('subscriptionPlan') // ✅ FIX: Eager load subscription plan to get features
+                    ->latest()
+                    ->first();
 
-            if (!$activeSubscription) {
+                if (!$activeSubscription) {
                     return [
-                    'success' => false,
-                    'message' => 'Business owner subscription has expired',
-                    'has_subscription' => false,
-                    'subscription_expired' => true,
+                        'success' => false,
+                        'message' => 'Business owner subscription has expired',
+                        'has_subscription' => false,
+                        'subscription_expired' => true,
+                        'is_employee' => true,
+                        'owner_id' => $owner->id,
+                        'business_id' => $employee->business->id,
+                        'status_code' => 403,
+                    ];
+                }
+
+                // Owner has active subscription, employee can access
+                // ✅ FIX: Get subscription plan features for employee (from owner's subscription)
+                $plan = $activeSubscription->subscriptionPlan;
+
+                // ✅ FIX: Check if plan exists
+                if (!$plan) {
+                    return [
+                        'success' => false,
+                        'message' => 'Subscription plan not found',
+                        'has_subscription' => false,
+                        'subscription_expired' => true,
+                        'status_code' => 500,
+                    ];
+                }
+
+                // ✅ NEW: Check has_reports_access first (configurable from Filament), fallback to has_advanced_reports
+                $hasReportsAccess = isset($plan->has_reports_access) ? $plan->has_reports_access : ($plan->has_advanced_reports ?? false);
+
+                $planFeatures = [
+                    'has_advanced_reports' => $hasReportsAccess, // Use has_reports_access if available
+                    'has_reports_access' => $hasReportsAccess, // ✅ NEW: Include has_reports_access
+                    'has_kitchen_access' => $plan->has_kitchen_access ?? false,
+                    'has_tables_access' => $plan->has_tables_access ?? false,
+                    'has_attendance_access' => $plan->has_attendance_access ?? false,
+                    'has_inventory_access' => $plan->has_inventory_access ?? false,
+                    'has_promo_access' => $plan->has_promo_access ?? false,
+                    'has_stock_transfer_access' => $plan->has_stock_transfer_access ?? false,
+                    'has_self_service_access' => $plan->has_self_service_access ?? false,
+                    'has_online_integration' => $plan->has_online_integration ?? false,
+                    'has_api_access' => $plan->has_api_access ?? false,
+                    'has_multi_location' => $plan->has_multi_location ?? false,
+                    'max_businesses' => $plan->max_businesses ?? 1, // ✅ NEW: Include max_businesses
+                    'max_outlets' => $plan->max_outlets ?? 1,
+                    'max_products' => $plan->max_products ?? 100,
+                    'max_employees' => $plan->max_employees ?? 5,
+                ];
+
+                return [
+                    'success' => true,
+                    'data' => $activeSubscription,
+                    'has_subscription' => true,
+                    'is_active' => true,
+                    'days_remaining' => $activeSubscription->daysRemaining(),
+                    'is_trial' => $activeSubscription->is_trial ?? false,
+                    'trial_ended' => $activeSubscription->isTrialEnded(),
                     'is_employee' => true,
                     'owner_id' => $owner->id,
                     'business_id' => $employee->business->id,
-                        'status_code' => 403,
-                    ];
-            }
-
-            // Owner has active subscription, employee can access
-            // ✅ FIX: Get subscription plan features for employee (from owner's subscription)
-            $plan = $activeSubscription->subscriptionPlan;
-            
-            // ✅ NEW: Check has_reports_access first (configurable from Filament), fallback to has_advanced_reports
-            $hasReportsAccess = isset($plan->has_reports_access) 
-                ? $plan->has_reports_access 
-                : ($plan->has_advanced_reports ?? false);
-            
-            $planFeatures = [
-                'has_advanced_reports' => $hasReportsAccess, // Use has_reports_access if available
-                'has_reports_access' => $hasReportsAccess, // ✅ NEW: Include has_reports_access
-                'has_kitchen_access' => $plan->has_kitchen_access ?? false,
-                'has_tables_access' => $plan->has_tables_access ?? false,
-                'has_attendance_access' => $plan->has_attendance_access ?? false,
-                'has_inventory_access' => $plan->has_inventory_access ?? false,
-                'has_promo_access' => $plan->has_promo_access ?? false,
-                'has_stock_transfer_access' => $plan->has_stock_transfer_access ?? false,
-                'has_self_service_access' => $plan->has_self_service_access ?? false,
-                'has_online_integration' => $plan->has_online_integration ?? false,
-                'has_api_access' => $plan->has_api_access ?? false,
-                'has_multi_location' => $plan->has_multi_location ?? false,
-                'max_businesses' => $plan->max_businesses ?? 1, // ✅ NEW: Include max_businesses
-                'max_outlets' => $plan->max_outlets ?? 1,
-                'max_products' => $plan->max_products ?? 100,
-                'max_employees' => $plan->max_employees ?? 5,
-            ];
-            
-                return [
-                'success' => true,
-                'data' => $activeSubscription,
-                'has_subscription' => true,
-                'is_active' => true,
-                'days_remaining' => $activeSubscription->daysRemaining(),
-                'is_trial' => $activeSubscription->is_trial,
-                'trial_ended' => $activeSubscription->isTrialEnded(),
-                'is_employee' => true,
-                'owner_id' => $owner->id,
-                'business_id' => $employee->business->id,
-                'plan_features' => $planFeatures, // ✅ FIX: Include plan features for employee
+                    'plan_features' => $planFeatures, // ✅ FIX: Include plan features for employee
                     'status_code' => 200,
                 ];
             })();
-            
+
             $statusCode = $result['status_code'] ?? 200;
             unset($result['status_code']);
             return response()->json($result, $statusCode);
@@ -369,9 +377,6 @@ class SubscriptionController extends Controller
 
         // For owner/super_admin roles, check their own subscription
         // ✅ FIX: Don't use cache for now to ensure fresh data
-        // $cacheKey = "subscription:user:{$user->id}";
-        // Cache::forget($cacheKey);
-        
         $subscription = UserSubscription::with(['subscriptionPlan', 'subscriptionPlanPrice'])
             ->where('user_id', $user->id)
             ->whereIn('status', ['active', 'pending_payment'])
@@ -393,12 +398,23 @@ class SubscriptionController extends Controller
 
         // Get subscription plan features
         $plan = $subscription->subscriptionPlan;
-        
+
+        // ✅ FIX: Check if plan exists before accessing properties
+        if (!$plan) {
+            Log::error('Subscription plan not found for subscription', [
+                'subscription_id' => $subscription->id,
+                'subscription_plan_id' => $subscription->subscription_plan_id,
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Subscription plan not found',
+                'has_subscription' => false,
+            ], 500);
+        }
+
         // ✅ NEW: Check has_reports_access first (configurable from Filament), fallback to has_advanced_reports
-        $hasReportsAccess = isset($plan->has_reports_access) 
-            ? $plan->has_reports_access 
-            : ($plan->has_advanced_reports ?? false);
-        
+        $hasReportsAccess = isset($plan->has_reports_access) ? $plan->has_reports_access : ($plan->has_advanced_reports ?? false);
+
         $planFeatures = [
             'has_advanced_reports' => $hasReportsAccess, // Use has_reports_access if available
             'has_reports_access' => $hasReportsAccess, // ✅ NEW: Include has_reports_access
@@ -426,10 +442,23 @@ class SubscriptionController extends Controller
             'is_pending_payment' => $isPendingPayment, // Flag untuk status pending payment
             'subscription_status' => $subscription->status, // Status subscription (active, pending_payment, etc)
             'days_remaining' => $daysRemaining,
-            'is_trial' => $subscription->is_trial,
+            'is_trial' => $subscription->is_trial ?? false,
             'trial_ended' => $subscription->isTrialEnded(),
             'plan_features' => $planFeatures, // ✅ NEW: Include subscription plan features
         ]);
+        } catch (\Exception $e) {
+            Log::error('Error getting current subscription', [
+                'user_id' => Auth::id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error retrieving subscription: ' . $e->getMessage(),
+                'has_subscription' => false,
+            ], 500);
+        }
     }
 
     /**
@@ -484,7 +513,6 @@ class SubscriptionController extends Controller
 
             // ✅ FIX: Use subscription_code as order_id for consistency
             // This ensures webhook can find subscription easily
-            // If Midtrans rejects duplicate order_id, we'll handle it in the error
             $orderId = $subscription->subscription_code;
 
             // Create Midtrans payment token with subscription_code as order_id
@@ -514,7 +542,6 @@ class SubscriptionController extends Controller
                     'order_id' => $orderId, // Return order_id (same as subscription_code)
                 ],
             ]);
-
         } catch (\Exception $e) {
             Log::error('Failed to generate payment token', [
                 'subscription_code' => $subscriptionCode,
@@ -565,6 +592,7 @@ class SubscriptionController extends Controller
         }
 
         DB::beginTransaction();
+
         try {
             // Update subscription status
             $subscription->update([
@@ -594,9 +622,9 @@ class SubscriptionController extends Controller
                 'message' => 'Payment confirmed successfully',
                 'data' => $subscription->fresh()->load(['subscriptionPlan', 'subscriptionPlanPrice']),
             ]);
-
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to confirm payment',
@@ -619,6 +647,7 @@ class SubscriptionController extends Controller
             $request->validate([
                 'subscription_plan_id' => 'required|exists:subscription_plans,id',
                 'subscription_plan_price_id' => 'required|exists:subscription_plan_prices,id',
+                'upgrade_option' => 'nullable|in:prorated,full,discount', // ✅ NEW: Allow user to choose upgrade option
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             Log::error('Validation failed in upgrade', [
@@ -628,6 +657,7 @@ class SubscriptionController extends Controller
         }
 
         $user = Auth::user();
+
         Log::info('User authenticated for upgrade', [
             'user_id' => $user->id,
             'user_role' => $user->role,
@@ -648,6 +678,7 @@ class SubscriptionController extends Controller
             Log::warning('No active subscription found for upgrade', [
                 'user_id' => $user->id,
             ]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'No active subscription found to upgrade',
@@ -714,24 +745,29 @@ class SubscriptionController extends Controller
         ]);
 
         DB::beginTransaction();
+
         try {
             // Calculate upgrade options
             $upgradeOptions = $this->calculateUpgradeOptions($currentSubscription, $newPrice);
 
-            // For now, use the first option (prorated) as default
-            $selectedOption = $upgradeOptions['prorated'];
+            // ✅ FIX: Use selected upgrade option (default to prorated)
+            $selectedOptionType = $request->input('upgrade_option', 'prorated');
+            $selectedOption = $upgradeOptions[$selectedOptionType];
 
             $startsAt = Carbon::now();
             $endsAt = $selectedOption['ends_at'];
             $amountToPay = $selectedOption['amount_to_pay'];
-            $creditAmount = $selectedOption['credit_amount'];
+            $creditAmount = $selectedOption['credit_amount'] ?? 0;
+            $bonusDays = $selectedOption['bonus_days'] ?? 0;
 
             Log::info('Calculated upgrade details', [
+                'upgrade_option' => $selectedOptionType,
                 'starts_at' => $startsAt,
                 'ends_at' => $endsAt,
                 'duration_months' => $newPrice->duration_months,
                 'amount_to_pay' => $amountToPay,
                 'credit_amount' => $creditAmount,
+                'bonus_days' => $bonusDays,
             ]);
 
             // ✅ FIX: Determine if payment is required
@@ -748,6 +784,15 @@ class SubscriptionController extends Controller
             $oldPlanName = $currentSubscription->subscriptionPlan ? $currentSubscription->subscriptionPlan->name : 'Previous Plan';
             $subscriptionCode = 'SUB-' . strtoupper(Str::random(10));
 
+            // Build notes with upgrade details
+            $upgradeNotes = "Upgraded from {$oldPlanName} using '{$selectedOptionType}' option";
+            if ($creditAmount > 0) {
+                $upgradeNotes .= " (Credit: Rp " . number_format($creditAmount, 0, ',', '.') . ")";
+            }
+            if ($bonusDays > 0) {
+                $upgradeNotes .= " (Bonus: {$bonusDays} days)";
+            }
+
             $newSubscription = UserSubscription::create([
                 'user_id' => $user->id,
                 'subscription_plan_id' => $newPlan->id,
@@ -760,7 +805,7 @@ class SubscriptionController extends Controller
                 'trial_ends_at' => null,
                 'is_trial' => false,
                 'plan_features' => $newPlan->features,
-                'notes' => 'Upgraded from ' . $oldPlanName . ' (Prorated: ' . $creditAmount . ' credit applied)',
+                'notes' => $upgradeNotes,
             ]);
 
             Log::info('New subscription created', [
@@ -827,17 +872,17 @@ class SubscriptionController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => $requiresPayment 
-                    ? 'Upgrade berhasil dibuat. Silakan lakukan pembayaran untuk mengaktifkan paket.'
-                    : 'Subscription upgraded and activated successfully!',
+                'message' => $requiresPayment ? 'Upgrade berhasil dibuat. Silakan lakukan pembayaran untuk mengaktifkan paket.' : 'Subscription upgraded and activated successfully!',
                 'data' => $newSubscription->load(['subscriptionPlan', 'subscriptionPlanPrice']),
                 'requires_payment' => $requiresPayment, // ✅ FIX: Return true if payment required
                 'snap_token' => $snapToken, // ✅ FIX: Return snap token for payment
                 'client_key' => config('midtrans.client_key'),
                 'amount_to_pay' => $amountToPay,
                 'credit_amount' => $creditAmount,
+                'bonus_days' => $bonusDays,
+                'upgrade_option' => $selectedOptionType,
+                'all_upgrade_options' => $upgradeOptions, // Return all options for reference
             ], 200);
-
         } catch (\Exception $e) {
             DB::rollBack();
 
@@ -1052,6 +1097,7 @@ class SubscriptionController extends Controller
 
         // Get trial plan
         $trialPlan = SubscriptionPlan::where('name', 'Trial 7 Hari')->first();
+
         if (!$trialPlan) {
             return response()->json([
                 'success' => false,
@@ -1072,6 +1118,7 @@ class SubscriptionController extends Controller
         }
 
         DB::beginTransaction();
+
         try {
             // Cancel current subscription
             $currentSubscription->update([
@@ -1129,9 +1176,9 @@ class SubscriptionController extends Controller
                     'features' => $trialPlan->features,
                 ],
             ]);
-
         } catch (\Exception $e) {
             DB::rollBack();
+
             Log::error('Error downgrading subscription', [
                 'user_id' => $user->id,
                 'error' => $e->getMessage(),
@@ -1183,7 +1230,7 @@ class SubscriptionController extends Controller
 
         // ✅ FIX: Get business to check Midtrans config (optional - user might not have business yet)
         $business = $user->ownedBusinesses()->first() ?? $user->businesses()->first();
-        
+
         // ✅ FIX: Business is not required for subscription activation
         // User can have active subscription without business (they'll create it later)
         if (!$business) {
@@ -1192,6 +1239,7 @@ class SubscriptionController extends Controller
                 'user_id' => $user->id,
                 'subscription_code' => $subscription->subscription_code,
             ]);
+
             // Use default MidtransService (no business-specific config)
             $midtransService = new \App\Services\MidtransService();
         } else {
@@ -1201,14 +1249,13 @@ class SubscriptionController extends Controller
 
         // ✅ FIX: Check payment status from Midtrans before activating
         try {
-            
             // Use subscription_code as order_id (might have timestamp suffix)
             $orderId = $subscription->subscription_code;
-            
+
             // If order_id contains timestamp (format: SUB-XXXXX-TIMESTAMP), use as is
             // Midtrans will handle it
             $transactionStatus = $midtransService->getTransactionStatus($orderId);
-            
+
             Log::info('Checking Midtrans payment status for subscription', [
                 'subscription_id' => $subscription->id,
                 'subscription_code' => $subscription->subscription_code,
@@ -1218,13 +1265,13 @@ class SubscriptionController extends Controller
 
             // Only activate if payment is settled or captured
             $isSettled = in_array($transactionStatus->transaction_status ?? '', ['settlement', 'capture']);
-            
+
             if (!$isSettled) {
                 Log::info('Payment not yet settled, cannot activate subscription', [
                     'subscription_id' => $subscription->id,
                     'transaction_status' => $transactionStatus->transaction_status ?? 'unknown',
                 ]);
-                
+
                 return response()->json([
                     'success' => false,
                     'message' => 'Pembayaran belum selesai. Status: ' . ($transactionStatus->transaction_status ?? 'unknown'),
@@ -1236,7 +1283,7 @@ class SubscriptionController extends Controller
                 'subscription_id' => $subscription->id,
                 'error' => $e->getMessage(),
             ]);
-            
+
             // If we can't check Midtrans, still try to activate (user returned from payment)
             // This handles cases where Midtrans API is temporarily unavailable
             Log::warning('Proceeding with activation despite Midtrans check failure', [
@@ -1245,6 +1292,7 @@ class SubscriptionController extends Controller
         }
 
         DB::beginTransaction();
+
         try {
             // ✅ FIX: Activate subscription after verifying payment status
             $subscription->update([
@@ -1258,7 +1306,7 @@ class SubscriptionController extends Controller
                     'current_subscription_id' => $subscription->id,
                     'subscription_expires_at' => $subscription->ends_at,
                 ]);
-                
+
                 Log::info('Business updated with new subscription', [
                     'business_id' => $business->id,
                     'subscription_id' => $subscription->id,
@@ -1299,9 +1347,9 @@ class SubscriptionController extends Controller
                 'message' => 'Subscription verified and activated successfully!',
                 'data' => $subscription->fresh()->load(['subscriptionPlan', 'subscriptionPlanPrice']),
             ]);
-
         } catch (\Exception $e) {
             DB::rollBack();
+
             Log::error('Failed to verify and activate subscription', [
                 'user_id' => $user->id,
                 'error' => $e->getMessage(),
@@ -1336,6 +1384,7 @@ class SubscriptionController extends Controller
         }
 
         DB::beginTransaction();
+
         try {
             // Activate subscription
             $subscription->update([
@@ -1369,9 +1418,9 @@ class SubscriptionController extends Controller
                 'message' => 'Subscription activated successfully!',
                 'data' => $subscription->fresh()->load(['subscriptionPlan', 'subscriptionPlanPrice']),
             ]);
-
         } catch (\Exception $e) {
             DB::rollBack();
+
             Log::error('Failed to manually activate subscription', [
                 'user_id' => $user->id,
                 'error' => $e->getMessage(),
@@ -1386,7 +1435,17 @@ class SubscriptionController extends Controller
     }
 
     /**
-     * Calculate upgrade options with prorated billing
+     * ✅ FIXED: Calculate upgrade options with DAILY VALUE calculation
+     *
+     * Perhitungan berdasarkan nilai harian:
+     * 1. Hitung harga per hari paket lama dan baru
+     * 2. Hitung sisa nilai uang dari paket lama
+     * 3. Gabungkan dengan harga paket baru untuk dapat total hari aktif
+     *
+     * Returns 3 upgrade options:
+     * 1. Prorated (Daily Value): Menghitung berdasarkan nilai harian
+     * 2. Full Payment: Bayar full, dapat bonus hari
+     * 3. Discount: Diskon 10%
      */
     private function calculateUpgradeOptions($currentSubscription, $newPrice)
     {
@@ -1396,74 +1455,148 @@ class SubscriptionController extends Controller
         $currentAmountPaid = $currentSubscription->amount_paid;
 
         // Calculate remaining time
-        $remainingDays = $now->diffInDays($currentEndsAt, false);
+        $remainingDays = max(0, $now->diffInDays($currentEndsAt, false)); // Ensure non-negative
         $totalDays = $currentStartsAt->diffInDays($currentEndsAt);
         $usedDays = $totalDays - $remainingDays;
 
-        // Round remaining days to 1 decimal place for display
+        // ✅ NEW: Calculate DAILY VALUE (harga per hari)
+        $currentDailyPrice = $totalDays > 0 ? ($currentAmountPaid / $totalDays) : 0;
+        $newDailyPrice = $newPrice->duration_months > 0 ? ($newPrice->final_price / ($newPrice->duration_months * 30)) : 0;
+
+        // ✅ NEW: Calculate remaining value (sisa nilai uang dari paket lama)
+        $remainingValue = $remainingDays * $currentDailyPrice;
+
+        // Round for display
         $remainingDaysRounded = round($remainingDays, 1);
+        $remainingValueRounded = round($remainingValue, 2);
 
-        // Calculate credit amount (proportional to remaining time)
-        $creditAmount = 0;
-        if ($remainingDays > 0 && $totalDays > 0) {
-            $creditAmount = ($remainingDays / $totalDays) * $currentAmountPaid;
-        }
+        // ================== OPTION 1: PRORATED (DAILY VALUE METHOD) ==================
+        // Konsep: Sisa nilai paket lama + Harga paket baru = Total nilai
+        // Total nilai / Harga harian baru = Total hari aktif
 
-        // Calculate new end date (add remaining days to new subscription)
-        $newEndsAt = $now->copy()->addMonths($newPrice->duration_months);
-        if ($remainingDays > 0) {
-            $newEndsAt->addDays($remainingDays);
-        }
+        $proratedTotalValue = $remainingValue + $newPrice->final_price;
+        $proratedTotalDays = $newDailyPrice > 0 ? ($proratedTotalValue / $newDailyPrice) : 0;
 
-        // Option 1: Prorated (with credit)
-        $proratedAmount = max(0, $newPrice->final_price - $creditAmount);
+        // User bayar harga paket baru (karena sisa nilai sudah dihitung ke total hari)
+        $proratedAmount = $newPrice->final_price;
+        $proratedEndsAt = $now->copy()->addDays((int) floor($proratedTotalDays));
 
-        // Option 2: Full payment (no credit, but extend duration)
+        // Bonus days adalah selisih dari duration standar
+        $standardDays = $newPrice->duration_months * 30;
+        $proratedBonusDays = max(0, (int) floor($proratedTotalDays - $standardDays));
+
+        // ================== OPTION 2: FULL PAYMENT (BONUS DAYS) ==================
+        // Konsep: Bayar full harga baru, dapat bonus hari dari sisa paket lama
+
         $fullAmount = $newPrice->final_price;
+        $fullEndsAt = $now->copy()->addMonths($newPrice->duration_months);
+        if ($remainingDays > 0) {
+            $fullEndsAt->addDays($remainingDays); // Bonus hari langsung dari sisa hari paket lama
+        }
+        $fullBonusDays = (int) $remainingDays;
 
-        // Option 3: Discounted upgrade (10% discount)
-        $discountAmount = $newPrice->final_price * 0.1;
+        // ================== OPTION 3: DISCOUNT (10% OFF) ==================
+        // Konsep: Diskon 10% dari harga baru, durasi standar
+
+        $discountPercentage = 10;
+        $discountAmount = $newPrice->final_price * ($discountPercentage / 100);
         $discountedAmount = $newPrice->final_price - $discountAmount;
+        $discountEndsAt = $now->copy()->addMonths($newPrice->duration_months);
+
+        // ✅ NEW: Determine which option is recommended based on BEST VALUE
+        // Compare effective daily price for each option
+        $proratedEffectiveDailyPrice = $proratedAmount / $proratedTotalDays;
+        $fullEffectiveDailyPrice = $fullAmount / ($standardDays + $fullBonusDays);
+        $discountEffectiveDailyPrice = $discountedAmount / $standardDays;
+
+        // Recommended = yang punya effective daily price paling rendah
+        $minDailyPrice = min($proratedEffectiveDailyPrice, $fullEffectiveDailyPrice, $discountEffectiveDailyPrice);
+
+        $proratedRecommended = ($proratedEffectiveDailyPrice <= $minDailyPrice + 0.01); // Tolerance untuk pembulatan
+        $fullRecommended = ($fullEffectiveDailyPrice <= $minDailyPrice + 0.01) && !$proratedRecommended;
+        $discountRecommended = ($discountEffectiveDailyPrice <= $minDailyPrice + 0.01) && !$proratedRecommended && !$fullRecommended;
 
         return [
             'prorated' => [
                 'type' => 'prorated',
-                'label' => 'Upgrade dengan Credit',
-                'description' => 'Gunakan sisa waktu sebagai credit',
-                'amount_to_pay' => $proratedAmount,
-                'credit_amount' => $creditAmount,
-                'ends_at' => $newEndsAt,
-                'savings' => $creditAmount,
-                'is_recommended' => true,
+                'label' => 'Upgrade dengan Daily Value (Direkomendasikan)',
+                'description' => "Sisa nilai paket lama (Rp " . number_format($remainingValueRounded, 0, ',', '.') . ") digabungkan dengan paket baru untuk perpanjang durasi",
+                'amount_to_pay' => round($proratedAmount, 2),
+                'credit_amount' => round($remainingValue, 2),
+                'ends_at' => $proratedEndsAt,
+                'total_days' => (int) floor($proratedTotalDays),
+                'bonus_days' => $proratedBonusDays,
+                'savings' => 0, // Tidak ada diskon, tapi dapat hari tambahan
+                'effective_daily_price' => round($proratedEffectiveDailyPrice, 2),
+                'is_recommended' => $proratedRecommended,
+                'recommendation_reason' => $proratedRecommended
+                    ? "Paling hemat! Dapat " . $proratedBonusDays . " hari bonus dari sisa paket lama (senilai Rp " . number_format($remainingValueRounded, 0, ',', '.') . ")"
+                    : null,
+                'calculation_details' => [
+                    'current_daily_price' => round($currentDailyPrice, 2),
+                    'new_daily_price' => round($newDailyPrice, 2),
+                    'remaining_value' => round($remainingValue, 2),
+                    'total_value' => round($proratedTotalValue, 2),
+                    'formula' => "({$remainingDaysRounded} hari × Rp " . number_format($currentDailyPrice, 0) . ") + Rp " . number_format($newPrice->final_price, 0) . " = " . (int) floor($proratedTotalDays) . " hari",
+                ],
             ],
             'full' => [
                 'type' => 'full',
-                'label' => 'Upgrade Full + Extension',
-                'description' => 'Bayar full, sisa waktu ditambahkan',
+                'label' => 'Upgrade Full + Bonus Days',
+                'description' => 'Bayar harga penuh, dapatkan bonus ' . $remainingDays . ' hari dari paket lama',
                 'amount_to_pay' => $fullAmount,
                 'credit_amount' => 0,
-                'ends_at' => $newEndsAt,
+                'ends_at' => $fullEndsAt,
+                'total_days' => $standardDays + $fullBonusDays,
+                'bonus_days' => $fullBonusDays,
                 'savings' => 0,
-                'is_recommended' => false,
+                'effective_daily_price' => round($fullEffectiveDailyPrice, 2),
+                'is_recommended' => $fullRecommended,
+                'recommendation_reason' => $fullRecommended
+                    ? "Dapat " . $fullBonusDays . " hari bonus tambahan"
+                    : null,
+                'calculation_details' => [
+                    'standard_days' => $standardDays,
+                    'bonus_from_old_plan' => $fullBonusDays,
+                    'formula' => $standardDays . " hari + " . $fullBonusDays . " hari bonus = " . ($standardDays + $fullBonusDays) . " hari total",
+                ],
             ],
             'discount' => [
                 'type' => 'discount',
-                'label' => 'Upgrade dengan Diskon 10%',
-                'description' => 'Diskon khusus untuk upgrade',
-                'amount_to_pay' => $discountedAmount,
+                'label' => 'Upgrade dengan Diskon ' . $discountPercentage . '%',
+                'description' => 'Diskon khusus ' . $discountPercentage . '% untuk loyal customer',
+                'amount_to_pay' => round($discountedAmount, 2),
                 'credit_amount' => 0,
-                'ends_at' => $now->copy()->addMonths($newPrice->duration_months),
-                'savings' => $discountAmount,
-                'is_recommended' => false,
+                'ends_at' => $discountEndsAt,
+                'total_days' => $standardDays,
+                'bonus_days' => 0,
+                'savings' => round($discountAmount, 2),
+                'effective_daily_price' => round($discountEffectiveDailyPrice, 2),
+                'is_recommended' => $discountRecommended,
+                'recommendation_reason' => $discountRecommended
+                    ? "Hemat Rp " . number_format($discountAmount, 0, ',', '.') . " dengan diskon"
+                    : null,
+                'calculation_details' => [
+                    'original_price' => $newPrice->final_price,
+                    'discount_percentage' => $discountPercentage,
+                    'discount_amount' => round($discountAmount, 2),
+                    'formula' => "Rp " . number_format($newPrice->final_price, 0) . " - " . $discountPercentage . "% = Rp " . number_format($discountedAmount, 0),
+                ],
             ],
             'summary' => [
-                'current_plan' => $currentSubscription->subscriptionPlan->name,
-                'new_plan' => $newPrice->subscriptionPlan->name,
+                'current_plan' => $currentSubscription->subscriptionPlan->name ?? 'Unknown Plan',
+                'new_plan' => $newPrice->subscriptionPlan->name ?? 'Unknown Plan',
                 'remaining_days' => $remainingDaysRounded,
                 'total_days' => $totalDays,
                 'used_days' => $usedDays,
                 'current_amount' => $currentAmountPaid,
+                'current_daily_price' => round($currentDailyPrice, 2),
                 'new_plan_price' => $newPrice->final_price,
+                'new_daily_price' => round($newDailyPrice, 2),
+                'remaining_value' => round($remainingValue, 2),
+                'credit_percentage' => $totalDays > 0 ? round(($remainingDays / $totalDays) * 100, 1) : 0,
+                'calculation_method' => 'daily_value',
+                'explanation' => "Sisa {$remainingDaysRounded} hari × Rp " . number_format($currentDailyPrice, 0) . "/hari = Rp " . number_format($remainingValue, 0) . " (nilai sisa paket lama)",
             ]
         ];
     }

@@ -22,15 +22,15 @@ use Spatie\Permission\Models\Permission;
 
 /**
  * ⚠️ DUMMY DATA SEEDER - UNTUK TESTING SAJA
- * 
+ *
  * Seeder ini HANYA untuk membuat data dummy/testing.
  * Seeder ini TIDAK akan menghapus user yang sudah terdaftar melalui aplikasi.
- * 
+ *
  * Data test yang dibuat:
  * - User: owner@bintanglima.com, admin@bintanglima.com, dll
  * - Business: Restoran Bintang Lima
  * - Outlet, Products, Orders, dll untuk testing
- * 
+ *
  * ⚠️ PENTING: Seeder ini hanya menghapus data test, BUKAN data user yang sudah daftar!
  */
 class DummyDataSeeder extends Seeder
@@ -81,7 +81,7 @@ class DummyDataSeeder extends Seeder
         // ✅ FIX: Only clear test/dummy data, NOT real user data
         // This seeder is for testing purposes only
         // It should NOT delete users who registered through the app
-        
+
         DB::statement('SET FOREIGN_KEY_CHECKS=0;');
 
         // ✅ Only delete test data (identified by specific email patterns or test markers)
@@ -93,7 +93,7 @@ class DummyDataSeeder extends Seeder
         if ($testBusinesses->isNotEmpty()) {
             // Delete related data for test businesses only
             $businessIds = $testBusinesses->toArray();
-            
+
             // Delete orders and order items for test businesses
             $testOutlets = Outlet::whereIn('business_id', $businessIds)->pluck('id');
             if ($testOutlets->isNotEmpty()) {
@@ -104,27 +104,27 @@ class DummyDataSeeder extends Seeder
                 }
                 Table::whereIn('outlet_id', $testOutlets)->delete();
             }
-            
+
             // Delete employees for test businesses
             Employee::whereIn('business_id', $businessIds)->delete();
-            
+
             // Delete products and categories for test businesses
             Product::whereIn('business_id', $businessIds)->delete();
             Category::whereIn('business_id', $businessIds)->delete();
-            
+
             // Delete customers for test businesses
             Customer::whereIn('business_id', $businessIds)->delete();
-            
+
             // Delete outlets for test businesses
             Outlet::whereIn('business_id', $businessIds)->delete();
-            
+
             // Delete subscriptions for test businesses' owners
             $testOwners = Business::whereIn('id', $businessIds)->pluck('owner_id');
             UserSubscription::whereIn('user_id', $testOwners)->delete();
-            
+
             // Delete test businesses
             Business::whereIn('id', $businessIds)->delete();
-            
+
             // Delete test users (only test users, not real registered users)
             $testUsers = User::where('email', 'owner@bintanglima.com')
                 ->orWhere('email', 'admin@bintanglima.com')
@@ -132,7 +132,7 @@ class DummyDataSeeder extends Seeder
                 ->orWhere('email', 'kitchen@bintanglima.com')
                 ->orWhere('email', 'waiter@bintanglima.com')
                 ->pluck('id');
-            
+
             if ($testUsers->isNotEmpty()) {
                 // Clear role assignments for test users only
                 try {
@@ -147,7 +147,7 @@ class DummyDataSeeder extends Seeder
                 } catch (\Exception $e) {
                     // Tables don't exist, skip
                 }
-                
+
                 User::whereIn('id', $testUsers)->delete();
             }
         }
@@ -346,7 +346,7 @@ class DummyDataSeeder extends Seeder
 
         foreach ($outletData as $data) {
             $outletSlug = \Illuminate\Support\Str::slug($data['name']);
-            
+
             // Ensure unique slug
             $originalSlug = $outletSlug;
             $counter = 1;

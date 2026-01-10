@@ -44,7 +44,7 @@ const PrintReceiptModal = ({ open, onClose, orderId }) => {
     // Focus on receipt content only
     const printWindow = window.open('', '_blank');
     const receiptElement = document.querySelector('.receipt-content');
-    
+
     if (!receiptElement) {
       console.error('Receipt element not found');
       return;
@@ -57,27 +57,402 @@ const PrintReceiptModal = ({ open, onClose, orderId }) => {
       <html>
       <head>
         <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Struk Pembayaran</title>
-        <link rel="stylesheet" href="${window.location.origin}/src/styles/thermal-printer.css">
         <style>
           @page {
             size: 80mm auto;
             margin: 0;
             padding: 0;
           }
+          
           * {
             margin: 0;
             padding: 0;
+            box-sizing: border-box;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
           }
-          body {
+          
+          html, body {
             width: 80mm;
+            height: auto;
             margin: 0;
             padding: 0;
-            font-family: 'Courier New', monospace;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+            font-size: 11pt;
+            line-height: 1.4;
+            color: #000;
+            background: #fff;
           }
-          .receipt-content {
+          
+          .receipt-content,
+          .thermal-receipt {
             width: 100%;
-            padding: 0;
+            max-width: 80mm;
+            margin: 0 auto;
+            padding: 5mm 3mm;
+            background: #fff;
+            color: #000;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+            font-size: 11pt;
+            line-height: 1.4;
+          }
+          
+          .receipt-header {
+            margin-bottom: 8pt;
+            padding-bottom: 4pt;
+            text-align: center;
+          }
+          
+          .receipt-title {
+            font-size: 16pt;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 4pt;
+            text-transform: uppercase;
+            line-height: 1.3;
+            letter-spacing: 0.3pt;
+          }
+          
+          .receipt-address,
+          .receipt-contact {
+            font-size: 10pt;
+            text-align: center;
+            margin: 2pt 0;
+            line-height: 1.5;
+          }
+          
+          .receipt-divider {
+            border-top: 1px dashed #000;
+            margin: 8pt 0;
+            height: 0;
+            width: 100%;
+            border-bottom: none;
+          }
+          
+          .receipt-info {
+            margin-bottom: 8pt;
+          }
+          
+          .receipt-info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            font-size: 10pt;
+            line-height: 1.6;
+            margin-bottom: 4pt;
+          }
+          
+          .receipt-info-row:last-child {
+            margin-bottom: 0;
+          }
+          
+          .receipt-info-label {
+            font-weight: 500;
+            min-width: 80pt;
+            flex-shrink: 0;
+            margin-right: 8pt;
+          }
+          
+          .receipt-info-value {
+            text-align: right;
+            flex: 1;
+            white-space: nowrap;
+            font-weight: 400;
+          }
+          
+          .receipt-items {
+            margin-bottom: 8pt;
+          }
+          
+          .receipt-items-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            font-size: 10pt;
+          }
+          
+          .receipt-table-header {
+            border-bottom: 1px solid #000;
+          }
+          
+          .receipt-table-header th {
+            font-weight: 600;
+            padding: 5pt 2pt;
+            font-size: 10pt;
+            text-align: left;
+          }
+          
+          .receipt-table-header th.receipt-col-qty {
+            text-align: center !important;
+          }
+          
+          .receipt-table-header th.receipt-col-price,
+          .receipt-table-header th.receipt-col-subtotal {
+            text-align: right !important;
+          }
+          
+          .receipt-table-row {
+            border-bottom: 1px dashed #ccc;
+          }
+          
+          .receipt-table-row:last-child {
+            border-bottom: none;
+          }
+          
+          .receipt-table-row td {
+            padding: 5pt 2pt;
+            vertical-align: top;
+            font-size: 10pt;
+            line-height: 1.5;
+          }
+          
+          .receipt-col-item {
+            width: 45% !important;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            padding-right: 2pt !important;
+          }
+          
+          .receipt-col-qty {
+            width: 10% !important;
+            text-align: center !important;
+            padding: 0 1pt !important;
+          }
+          
+          .receipt-col-price {
+            width: 22% !important;
+            text-align: right !important;
+            white-space: nowrap;
+            padding-left: 2pt !important;
+            padding-right: 2pt !important;
+          }
+          
+          .receipt-col-subtotal {
+            width: 23% !important;
+            text-align: right !important;
+            white-space: nowrap;
+            padding-left: 2pt !important;
+          }
+          
+          .receipt-item-name {
+            font-weight: 500;
+            line-height: 1.4;
+            word-break: break-word;
+            hyphens: auto;
+          }
+          
+          .receipt-item-variant {
+            font-size: 9pt;
+            color: #555;
+            line-height: 1.3;
+            margin-top: 2pt;
+            font-style: normal;
+            font-weight: 400;
+          }
+          
+          .receipt-text-center {
+            text-align: center !important;
+          }
+          
+          .receipt-text-right {
+            text-align: right !important;
+          }
+          
+          .receipt-text-bold {
+            font-weight: 700;
+          }
+          
+          .receipt-totals {
+            margin-bottom: 8pt;
+          }
+          
+          .receipt-total-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            font-size: 10pt;
+            line-height: 1.6;
+            margin-bottom: 4pt;
+          }
+          
+          .receipt-total-row:last-child {
+            margin-bottom: 0;
+          }
+          
+          .receipt-total-label {
+            font-weight: 500;
+            flex: 1;
+            margin-right: 8pt;
+          }
+          
+          .receipt-total-value {
+            text-align: right;
+            font-weight: 500;
+            min-width: 80pt;
+            white-space: nowrap;
+          }
+          
+          .receipt-total-final {
+            border-top: 2px solid #000;
+            padding-top: 4pt;
+            margin-top: 4pt;
+            font-weight: 700;
+            font-size: 12pt;
+          }
+          
+          .receipt-total-final .receipt-total-label,
+          .receipt-total-final .receipt-total-value {
+            font-weight: 700;
+          }
+          
+          .receipt-payments {
+            margin-bottom: 8pt;
+          }
+          
+          .receipt-payment-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            font-size: 10pt;
+            line-height: 1.6;
+            margin-bottom: 4pt;
+          }
+          
+          .receipt-payment-row:last-child {
+            margin-bottom: 0;
+          }
+          
+          .receipt-payment-label {
+            font-weight: 500;
+            flex: 1;
+            margin-right: 8pt;
+          }
+          
+          .receipt-payment-value {
+            text-align: right;
+            font-weight: 500;
+            min-width: 80pt;
+            white-space: nowrap;
+          }
+          
+          .receipt-change {
+            font-weight: 600;
+            margin-top: 4pt;
+            padding-top: 4pt;
+            border-top: 1px dashed #000;
+          }
+          
+          .receipt-change .receipt-payment-label,
+          .receipt-change .receipt-payment-value {
+            font-weight: 600;
+          }
+          
+          .receipt-footer {
+            text-align: center;
+            margin-top: 8pt;
+            padding-top: 4pt;
+          }
+          
+          .receipt-footer-text {
+            font-size: 9pt;
+            margin: 4pt 0;
+            line-height: 1.6;
+            font-weight: 400;
+          }
+          
+          .receipt-footer-print {
+            font-size: 8pt;
+            margin-top: 6pt;
+            color: #666;
+            padding-top: 4pt;
+            border-top: 1px dashed #ccc;
+            font-weight: 400;
+          }
+          
+          .receipt-discount {
+            color: #000;
+          }
+          
+          /* Override Tailwind classes untuk print */
+          .text-center {
+            text-align: center !important;
+          }
+          
+          .mb-3 {
+            margin-bottom: 12pt !important;
+          }
+          
+          .print\\:mb-2,
+          [class*="print:mb-2"] {
+            margin-bottom: 8pt !important;
+          }
+          
+          .w-full {
+            width: 100% !important;
+          }
+          
+          .text-xl {
+            font-size: 18pt !important;
+          }
+          
+          .print\\:text-base,
+          [class*="print:text-base"] {
+            font-size: 16pt !important;
+          }
+          
+          .font-bold {
+            font-weight: 700 !important;
+          }
+          
+          .text-sm {
+            font-size: 10pt !important;
+          }
+          
+          .print\\:text-\\[9pt\\],
+          [class*="print:text-[9pt]"] {
+            font-size: 9pt !important;
+          }
+          
+          .print\\:bg-white,
+          [class*="print:bg-white"] {
+            background: white !important;
+          }
+          
+          .print\\:text-black,
+          [class*="print:text-black"] {
+            color: black !important;
+          }
+          
+          @media print {
+            @page {
+              size: 80mm auto;
+              margin: 0;
+              padding: 0;
+            }
+            
+            * {
+              margin: 0;
+              padding: 0;
+            }
+            
+            body {
+              width: 80mm;
+              padding: 0;
+            }
+            
+            .receipt-content {
+              padding: 5mm 3mm !important;
+            }
+            
+            .mb-3 {
+              margin-bottom: 8pt !important;
+            }
+            
+            .print\\:mb-2 {
+              margin-bottom: 6pt !important;
+            }
           }
         </style>
       </head>
@@ -85,9 +460,10 @@ const PrintReceiptModal = ({ open, onClose, orderId }) => {
         ${receiptClone.innerHTML}
         <script>
           window.onload = function() {
-            window.print();
-            window.close();
-          }
+            setTimeout(function() {
+              window.print();
+            }, 250);
+          };
         </script>
       </body>
       </html>
@@ -191,18 +567,21 @@ const PrintReceiptModal = ({ open, onClose, orderId }) => {
   };
 
   const formatCurrency = amount => {
-    // Format untuk thermal printer - lebih compact, tanpa titik pemisah ribuan
-    // Contoh: 15000 -> "15.000" -> "15000" (tanpa titik untuk save space)
+    // Format untuk thermal printer dengan pemisah ribuan
     const num = Number(amount) || 0;
-    // Untuk thermal printer, gunakan format tanpa pemisah ribuan untuk save space
-    // Atau dengan pemisah titik jika masih muat
-    if (num >= 1000) {
-      return num.toLocaleString('id-ID', {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
-      });
-    }
-    return num.toString();
+    return num.toLocaleString('id-ID', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    });
+  };
+
+  const formatCurrencyWithRp = amount => {
+    // Format dengan Rp untuk display
+    const num = Number(amount) || 0;
+    return `Rp ${num.toLocaleString('id-ID', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    })}`;
   };
 
   if (!open) return null;
@@ -251,91 +630,108 @@ const PrintReceiptModal = ({ open, onClose, orderId }) => {
         ) : receiptData ? (
           <div className='receipt-content print:bg-white print:text-black thermal-receipt'>
             {/* Receipt Header - Focus on Outlet */}
-            <div className='text-center mb-4 print:mb-2'>
-              <h2 className='text-xl font-bold print:text-lg'>
+            <div className='text-center mb-3 print:mb-2 receipt-header'>
+              <h2 className='text-xl font-bold print:text-base receipt-title'>
                 {receiptData.outlet?.name || 'KASIR POS SYSTEM'}
               </h2>
               {receiptData.outlet?.address || receiptData.business?.address ? (
-                <p className='text-sm print:text-xs'>
-                  {receiptData.outlet?.address || receiptData.business?.address || ''}
+                <p className='text-sm print:text-[9pt] receipt-address'>
+                  {receiptData.outlet?.address ||
+                    receiptData.business?.address ||
+                    ''}
                 </p>
               ) : null}
               {receiptData.outlet?.phone || receiptData.business?.phone ? (
-                <p className='text-sm print:text-xs'>
-                  Tel: {receiptData.outlet?.phone || receiptData.business?.phone || ''}
+                <p className='text-sm print:text-[9pt] receipt-contact'>
+                  Tel: {receiptData.outlet?.phone ||
+                    receiptData.business?.phone ||
+                    ''}
                 </p>
               ) : null}
               {receiptData.outlet?.email || receiptData.business?.email ? (
-                <p className='text-sm print:text-xs'>
-                  Email: {receiptData.outlet?.email || receiptData.business?.email || ''}
+                <p className='text-sm print:text-[9pt] receipt-contact'>
+                  Email: {receiptData.outlet?.email ||
+                    receiptData.business?.email ||
+                    ''}
                 </p>
               ) : null}
             </div>
 
-            <div className='border-t border-b py-2 print:py-1 space-y-1 print:space-y-0.5'>
-              <div className='text-sm print:text-xs'>
-                Struk: {receiptData.print_info?.receipt_number || 'N/A'}
+            {/* Divider */}
+            <div className='receipt-divider'></div>
+
+            {/* Transaction Info */}
+            <div className='receipt-info mb-3 print:mb-2'>
+              <div className='receipt-info-row'>
+                <span className='receipt-info-label'>Struk:</span>
+                <span className='receipt-info-value'>{receiptData.print_info?.receipt_number || 'N/A'}</span>
               </div>
-              <div className='text-sm print:text-xs'>
-                Order: {receiptData.order?.order_number || 'N/A'}
+              <div className='receipt-info-row'>
+                <span className='receipt-info-label'>Order:</span>
+                <span className='receipt-info-value'>{receiptData.order?.order_number || 'N/A'}</span>
               </div>
-              <div className='text-sm print:text-xs'>
-                {receiptData.order?.ordered_at
-                  ? new Date(receiptData.order.ordered_at).toLocaleString(
-                      'id-ID'
-                    )
-                  : 'N/A'}
+              <div className='receipt-info-row'>
+                <span className='receipt-info-label'>Tanggal:</span>
+                <span className='receipt-info-value'>
+                  {receiptData.order?.ordered_at
+                    ? new Date(receiptData.order.ordered_at).toLocaleString(
+                        'id-ID',
+                        {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        }
+                      )
+                    : 'N/A'}
+                </span>
               </div>
-              <div className='text-sm print:text-xs'>
-                Kasir: {receiptData.cashier?.name || 'Kasir'}
+              <div className='receipt-info-row'>
+                <span className='receipt-info-label'>Kasir:</span>
+                <span className='receipt-info-value'>{receiptData.cashier?.name || 'Kasir'}</span>
               </div>
-              <div className='text-sm print:text-xs'>
-                Pelanggan:{' '}
-                {receiptData.customer?.name ||
-                  receiptData.order?.customer_name ||
-                  'Walk-in Customer'}
+              <div className='receipt-info-row'>
+                <span className='receipt-info-label'>Pelanggan:</span>
+                <span className='receipt-info-value'>
+                  {receiptData.customer?.name ||
+                    receiptData.order?.customer_name ||
+                    'Walk-in Customer'}
+                </span>
               </div>
             </div>
 
+            {/* Divider */}
+            <div className='receipt-divider'></div>
+
             {/* Items */}
-            <div className='my-4 print:my-2'>
-              <table className='w-full text-sm print:text-xs border-collapse receipt-items-table'>
+            <div className='receipt-items mb-3 print:mb-2'>
+              <table className='w-full receipt-items-table'>
                 <thead>
-                  <tr className='border-b border-gray-800 font-medium'>
-                    <th className='text-left py-1 print:py-0 pr-2'>ITEM</th>
-                    <th className='text-center py-1 print:py-0 receipt-col-qty'>
-                      QTY
-                    </th>
-                    <th className='text-right py-1 print:py-0 pr-2 receipt-col-price'>
-                      HARGA
-                    </th>
-                    <th className='text-right py-1 print:py-0 receipt-col-subtotal'>
-                      SUBTOTAL
-                    </th>
+                  <tr className='receipt-table-header'>
+                    <th className='receipt-col-item'>ITEM</th>
+                    <th className='receipt-col-qty'>QTY</th>
+                    <th className='receipt-col-price'>HARGA</th>
+                    <th className='receipt-col-subtotal'>SUBTOTAL</th>
                   </tr>
                 </thead>
                 <tbody>
                   {(receiptData.items || []).map((item, index) => (
-                    <tr
-                      key={index}
-                      className='border-b border-dashed border-gray-300 print:border-gray-800'
-                    >
-                      <td className='text-left py-1 print:py-0 pr-2 receipt-col-item'>
-                        <div>{item.product_name || 'N/A'}</div>
+                    <tr key={index} className='receipt-table-row'>
+                      <td className='receipt-col-item'>
+                        <div className='receipt-item-name'>{item.product_name || 'N/A'}</div>
                         {item.variant_name && (
-                          <div className='text-gray-600 print:text-gray-800 text-xs print:text-[8pt]'>
-                            ({item.variant_name})
-                          </div>
+                          <div className='receipt-item-variant'>({item.variant_name})</div>
                         )}
                       </td>
-                      <td className='text-center py-1 print:py-0 receipt-col-qty'>
+                      <td className='receipt-col-qty receipt-text-center'>
                         {item.quantity || 0}
                       </td>
-                      <td className='text-right py-1 print:py-0 pr-2 receipt-col-price'>
-                        Rp {formatCurrency(item.price || 0)}
+                      <td className='receipt-col-price receipt-text-right'>
+                        {formatCurrency(item.price || 0)}
                       </td>
-                      <td className='text-right py-1 print:py-0 font-medium receipt-col-subtotal'>
-                        Rp {formatCurrency(item.subtotal || 0)}
+                      <td className='receipt-col-subtotal receipt-text-right'>
+                        <span className='receipt-text-bold'>{formatCurrency(item.subtotal || 0)}</span>
                       </td>
                     </tr>
                   ))}
@@ -343,75 +739,87 @@ const PrintReceiptModal = ({ open, onClose, orderId }) => {
               </table>
             </div>
 
+            {/* Divider */}
+            <div className='receipt-divider'></div>
+
             {/* Totals */}
-            <div className='border-t pt-2 print:pt-1'>
-              <div className='flex justify-between text-sm print:text-xs'>
-                <span>Subtotal:</span>
-                <span>
-                  Rp {formatCurrency(receiptData.order?.subtotal || 0)}
+            <div className='receipt-totals mb-3 print:mb-2'>
+              <div className='receipt-total-row'>
+                <span className='receipt-total-label'>Subtotal:</span>
+                <span className='receipt-total-value'>
+                  {formatCurrency(receiptData.order?.subtotal || 0)}
                 </span>
               </div>
-              <div className='flex justify-between text-sm print:text-xs'>
-                <span>Pajak:</span>
-                <span>
-                  Rp {formatCurrency(receiptData.order?.tax_amount || 0)}
-                </span>
-              </div>
-              {receiptData.order?.discount_amount > 0 && (
-                <div className='flex justify-between text-sm print:text-xs text-red-600 print:text-red-800'>
-                  <span>
-                    Diskon
-                    {receiptData.order?.coupon_code
-                      ? ` (${receiptData.order.coupon_code})`
-                      : ''}
-                    :
-                  </span>
-                  <span>
-                    -Rp {formatCurrency(receiptData.order.discount_amount)}
+              {receiptData.order?.tax_amount > 0 && (
+                <div className='receipt-total-row'>
+                  <span className='receipt-total-label'>Pajak:</span>
+                  <span className='receipt-total-value'>
+                    {formatCurrency(receiptData.order?.tax_amount || 0)}
                   </span>
                 </div>
               )}
-              <div className='flex justify-between text-lg print:text-base font-bold border-t pt-1 print:pt-0'>
-                <span>TOTAL:</span>
-                <span>Rp {formatCurrency(receiptData.order?.total || 0)}</span>
-              </div>
-            </div>
-
-            {/* Payments */}
-            {(receiptData.payments || []).map((payment, index) => (
-              <div
-                key={index}
-                className='mt-2 print:mt-1 text-sm print:text-xs'
-              >
-                <div className='flex justify-between'>
-                  <span>
-                    Pembayaran: {(payment.method || 'N/A').toUpperCase()}
+              {receiptData.order?.discount_amount > 0 && (
+                <div className='receipt-total-row receipt-discount'>
+                  <span className='receipt-total-label'>
+                    Diskon{receiptData.order?.coupon_code
+                      ? ` (${receiptData.order.coupon_code})`
+                      : ''}:
                   </span>
-                  <span>Rp {formatCurrency(payment.amount || 0)}</span>
+                  <span className='receipt-total-value'>
+                    -{formatCurrency(receiptData.order.discount_amount)}
+                  </span>
                 </div>
-                {payment.notes && (
-                  <div className='text-gray-600 print:text-gray-800'>
-                    Catatan: {payment.notes}
-                  </div>
-                )}
-              </div>
-            ))}
-
-            <div className='mt-2 print:mt-1 text-sm print:text-xs'>
-              <div className='flex justify-between font-medium'>
-                <span>Kembalian:</span>
-                <span>
-                  Rp {formatCurrency(receiptData.order?.change_amount || 0)}
+              )}
+              <div className='receipt-total-row receipt-total-final'>
+                <span className='receipt-total-label receipt-text-bold'>TOTAL:</span>
+                <span className='receipt-total-value receipt-text-bold'>
+                  {formatCurrency(receiptData.order?.total || 0)}
                 </span>
               </div>
             </div>
 
+            {/* Divider */}
+            <div className='receipt-divider'></div>
+
+            {/* Payments */}
+            <div className='receipt-payments mb-3 print:mb-2'>
+              {(receiptData.payments || []).map((payment, index) => (
+                <div key={index} className='receipt-payment-row'>
+                  <span className='receipt-payment-label'>
+                    Pembayaran: {(payment.method || 'N/A').toUpperCase()}
+                  </span>
+                  <span className='receipt-payment-value'>
+                    {formatCurrency(payment.amount || 0)}
+                  </span>
+                </div>
+              ))}
+              <div className='receipt-payment-row receipt-change'>
+                <span className='receipt-payment-label'>Kembalian:</span>
+                <span className='receipt-payment-value'>
+                  {formatCurrency(receiptData.order?.change_amount || 0)}
+                </span>
+              </div>
+            </div>
+
+            {/* Divider */}
+            <div className='receipt-divider'></div>
+
             {/* Footer */}
-            <div className='text-center mt-4 print:mt-2 text-sm print:text-xs'>
-              <p>Terima kasih atas kunjungan Anda!</p>
-              <p>Barang yang sudah dibeli tidak dapat dikembalikan</p>
-              <p className='mt-2 print:mt-1'>
-                Dicetak: {receiptData.print_info?.printed_at || 'N/A'}
+            <div className='receipt-footer'>
+              <p className='receipt-footer-text'>Terima kasih atas kunjungan Anda!</p>
+              {receiptData.custom_footer_message ? (
+                <div className='receipt-footer-custom'>
+                  {receiptData.custom_footer_message.split('\n').map((line, index) => (
+                    <p key={index} className='receipt-footer-text'>
+                      {line}
+                    </p>
+                  ))}
+                </div>
+              ) : (
+                <p className='receipt-footer-text'>Barang yang sudah dibeli tidak dapat dikembalikan</p>
+              )}
+              <p className='receipt-footer-print'>
+                Dicetak: {receiptData.print_info?.printed_at || new Date().toLocaleString('id-ID')}
               </p>
             </div>
           </div>

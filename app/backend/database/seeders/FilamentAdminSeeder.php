@@ -14,7 +14,7 @@ class FilamentAdminSeeder extends Seeder
     public function run(): void
     {
         $adminEmail = 'admin@filament.com';
-        
+
         // Check if admin already exists
         $existingAdmin = User::where('email', $adminEmail)->first();
 
@@ -33,7 +33,7 @@ class FilamentAdminSeeder extends Seeder
             'password' => Hash::make('password'),
             'role' => 'super_admin',
             'email_verified_at' => now(),
-            'phone' => '081234567890',
+            'phone' => '6282197060927',
             'is_active' => true, // ✅ FIX: Ensure admin is active
         ]);
 
