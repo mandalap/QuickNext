@@ -219,11 +219,10 @@ const ProductManagementOptimized = () => {
         categoriesResponse.data?.categories ||
         [];
 
+    // Return full category objects with products_count normalized
     return normalized.map(cat => ({
-      product_count: cat.product_count,
-      count: cat.count,
-      allKeys: Object.keys(cat),
-      fullData: cat, // Log full object for debugging
+      ...cat, // Spread all category properties (id, name, description, image, etc.)
+      products_count: cat.products_count ?? cat.product_count ?? cat.count ?? 0,
     }));
   }, [categoriesResponse]);
 
@@ -587,33 +586,31 @@ const ProductManagementOptimized = () => {
       }
     },
     onSuccess: async () => {
-      // Clear cache first to ensure fresh data
+      // Clear local cache first to ensure fresh data
       removeCache(`${CACHE_KEYS.CATEGORIES}_all`);
+      if (currentBusiness?.id) {
+        removeCache(`${CACHE_KEYS.CATEGORIES}_${currentBusiness.id}`);
+      }
 
-      // Fetch fresh categories data without cache to ensure products_count is updated
-      await categoryService.getAll({}, false);
-
-      // Invalidate and refetch all categories queries
+      // Invalidate all categories queries (this will mark them as stale)
       await queryClient.invalidateQueries({
         queryKey: ['categories'],
         exact: false,
-        refetchType: 'active',
       });
-      // Also refetch the current query immediately
-      await queryClient.refetchQueries({
-        queryKey: queryKeys.categories.list(currentBusiness?.id),
+
+      // Refetch the current categories query immediately to get fresh data
+      if (currentBusiness?.id) {
+        await queryClient.refetchQueries({
+          queryKey: queryKeys.categories.list(currentBusiness.id),
+        });
+      }
+
+      // Also invalidate products queries to update category counts in product lists
+      await queryClient.invalidateQueries({
+        queryKey: ['products', currentBusiness?.id],
+        exact: false,
       });
-      // Also refetch products to update category counts
-      await queryClient.refetchQueries({
-        queryKey: queryKeys.products.list(currentBusiness?.id, {
-          per_page: itemsPerPage,
-          page: currentPage,
-          category: selectedCategory !== 'all' ? selectedCategory : undefined,
-          search: searchTerm || undefined,
-          sort_by: sortBy,
-          sort_order: sortOrder,
-        }),
-      });
+
       setShowCategoryModal(false);
       toast({
         title: isEditingCategory
@@ -1473,7 +1470,7 @@ const ProductManagementOptimized = () => {
                     className={`group relative w-full text-left px-3 py-2 rounded-lg transition-colors ${
                       selectedCategory === category.id
                         ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                        : 'hover:bg-gray-50 border border-transparent'
+                        : 'text-gray-700 hover:bg-gray-50 border border-transparent'
                     }`}
                   >
                     <button

@@ -276,8 +276,9 @@ const Login = () => {
               variant='outline'
               className='w-full'
               onClick={() => {
-                window.location.href =
-                  'http://localhost:8000/auth/google/redirect';
+                const backendUrl =
+                  process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
+                window.location.href = `${backendUrl}/auth/google/redirect`;
               }}
             >
               Lanjutkan dengan Google

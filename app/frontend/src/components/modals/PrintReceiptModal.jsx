@@ -1,20 +1,55 @@
 import { Download, Printer } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import JsBarcode from 'jsbarcode';
 import { orderService } from '../../services/order.service';
 import '../../styles/thermal-printer.css';
 import { Button } from '../ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
+import { useToast } from '../ui/toast';
 
 const PrintReceiptModal = ({ open, onClose, orderId }) => {
+  const { toast } = useToast();
   const [receiptData, setReceiptData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const barcodeRef = useRef(null);
 
   useEffect(() => {
     if (open && orderId) {
       loadReceiptData();
     }
   }, [open, orderId]);
+
+  // Generate barcode when receipt data is loaded
+  useEffect(() => {
+    if (receiptData && barcodeRef.current) {
+      const barcodeValue =
+        receiptData.print_info?.receipt_number ||
+        receiptData.order?.order_number ||
+        receiptData.order?.id?.toString() ||
+        '000000';
+
+      try {
+        // Clear previous barcode
+        barcodeRef.current.innerHTML = '';
+
+        // Create SVG element for barcode
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        barcodeRef.current.appendChild(svg);
+
+        // Generate barcode using Code128 format (most common and scannable)
+        JsBarcode(svg, barcodeValue, {
+          format: 'CODE128',
+          width: 2,
+          height: 40,
+          displayValue: false, // We'll show the number separately
+          margin: 0,
+        });
+      } catch (error) {
+        console.error('Error generating barcode:', error);
+      }
+    }
+  }, [receiptData]);
 
   const loadReceiptData = async () => {
     try {
@@ -473,18 +508,120 @@ const PrintReceiptModal = ({ open, onClose, orderId }) => {
     printWindow.document.close();
   };
 
-  const handleDownload = () => {
-    // Create a downloadable receipt
-    const receiptContent = generateReceiptContent();
-    const blob = new Blob([receiptContent], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `receipt-${receiptData?.order?.order_number || orderId}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  const handleDownload = async () => {
+    try {
+      // Import jsPDF and html2canvas dynamically
+      const jsPDF = (await import('jspdf')).default;
+      const html2canvas = (await import('html2canvas')).default;
+
+      // Get the receipt content element
+      const receiptElement = document.querySelector('.receipt-content');
+      if (!receiptElement) {
+        throw new Error('Receipt element not found');
+      }
+
+      // Show loading state
+      toast({
+        title: 'Membuat PDF...',
+        description: 'Sedang memproses struk menjadi PDF',
+      });
+
+      // Wait a bit to ensure all styles are applied
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      // Generate canvas from receipt element with better options
+      const canvas = await html2canvas(receiptElement, {
+        scale: 2, // Higher scale for better quality
+        logging: false,
+        backgroundColor: '#ffffff',
+        useCORS: true,
+        allowTaint: false,
+        windowWidth: receiptElement.scrollWidth,
+        windowHeight: receiptElement.scrollHeight,
+        width: receiptElement.scrollWidth,
+        height: receiptElement.scrollHeight,
+        onclone: (clonedDoc) => {
+          // Ensure all styles are applied in cloned document
+          const clonedElement = clonedDoc.querySelector('.receipt-content');
+          if (clonedElement) {
+            clonedElement.style.fontSize = '10pt';
+            clonedElement.style.fontFamily = "'Courier New', monospace";
+          }
+        },
+      });
+
+      // Convert canvas to image
+      const imgData = canvas.toDataURL('image/png');
+
+      // Calculate PDF dimensions
+      // Receipt width is 80mm (thermal receipt standard)
+      const pdfWidth = 80; // mm
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      const pageHeight = 297; // A4 height in mm (max page height)
+
+      // Create PDF - use A4 width but custom height for first page
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4', // Use A4 as base format
+      });
+
+      // Calculate if we need multiple pages
+      let heightLeft = pdfHeight;
+      let position = 0;
+      const pageWidth = 210; // A4 width in mm
+      const margin = (pageWidth - pdfWidth) / 2; // Center the receipt
+
+      // Add first page with receipt
+      pdf.addImage(imgData, 'PNG', margin, position, pdfWidth, pdfHeight);
+      heightLeft -= pageHeight;
+
+      // Add additional pages if content is longer than one page
+      while (heightLeft >= 0) {
+        position = heightLeft - pdfHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', margin, position, pdfWidth, pdfHeight);
+        heightLeft -= pageHeight;
+      }
+
+      // Save PDF
+      const fileName = `struk-${
+        receiptData?.order?.order_number || orderId || 'receipt'
+      }.pdf`;
+      
+      // Save the PDF file
+      pdf.save(fileName);
+
+      // Show success message
+      toast({
+        title: 'PDF berhasil diunduh',
+        description: `File ${fileName} telah disimpan`,
+      });
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name,
+      });
+      
+      toast({
+        title: 'Gagal membuat PDF',
+        description: error.message || 'Terjadi kesalahan saat membuat PDF. Silakan coba lagi.',
+        variant: 'destructive',
+      });
+      // Fallback to text download if PDF generation fails
+      const receiptContent = generateReceiptContent();
+      const blob = new Blob([receiptContent], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `receipt-${receiptData?.order?.order_number || orderId}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
   };
 
   const generateReceiptContent = () => {
@@ -505,9 +642,9 @@ const PrintReceiptModal = ({ open, onClose, orderId }) => {
     // ✅ FIX: Focus on outlet details, not business
     content += `${outlet.name || 'KASIR POS SYSTEM'}\n`;
     content += `${outlet.address || business.address || ''}\n`;
-    content += `Tel: ${outlet.phone || business.phone || ''}\n`;
+    content += `${outlet.phone || business.phone || ''}\n`;
     if (outlet.email || business.email) {
-      content += `Email: ${outlet.email || business.email || ''}\n`;
+      content += `${outlet.email || business.email || ''}\n`;
     }
     content += `${'='.repeat(32)}\n`;
     content += `Struk: ${print_info.receipt_number || 'N/A'}\n`;
@@ -567,7 +704,7 @@ const PrintReceiptModal = ({ open, onClose, orderId }) => {
   };
 
   const formatCurrency = amount => {
-    // Format untuk thermal printer dengan pemisah ribuan
+    // Format angka tanpa simbol mata uang (untuk kolom harga/subtotal)
     const num = Number(amount) || 0;
     return num.toLocaleString('id-ID', {
       minimumFractionDigits: 0,
@@ -576,13 +713,14 @@ const PrintReceiptModal = ({ open, onClose, orderId }) => {
   };
 
   const formatCurrencyWithRp = amount => {
-    // Format dengan Rp untuk display
+    // Format angka dengan prefix Rp (untuk subtotal/total/pembayaran)
     const num = Number(amount) || 0;
     return `Rp ${num.toLocaleString('id-ID', {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     })}`;
   };
+
 
   if (!open) return null;
 
@@ -629,198 +767,215 @@ const PrintReceiptModal = ({ open, onClose, orderId }) => {
           </div>
         ) : receiptData ? (
           <div className='receipt-content print:bg-white print:text-black thermal-receipt'>
-            {/* Receipt Header - Focus on Outlet */}
-            <div className='text-center mb-3 print:mb-2 receipt-header'>
-              <h2 className='text-xl font-bold print:text-base receipt-title'>
-                {receiptData.outlet?.name || 'KASIR POS SYSTEM'}
-              </h2>
-              {receiptData.outlet?.address || receiptData.business?.address ? (
-                <p className='text-sm print:text-[9pt] receipt-address'>
+            {/* HEADER */}
+            <div className='receipt-header'>
+              <div className='store-name'>
+                {receiptData.outlet?.name ||
+                  receiptData.business?.name ||
+                  'KOPI HARMONI'}
+              </div>
+              {(receiptData.outlet?.address ||
+                receiptData.business?.address) && (
+                <div className='store-address'>
                   {receiptData.outlet?.address ||
-                    receiptData.business?.address ||
-                    ''}
-                </p>
-              ) : null}
-              {receiptData.outlet?.phone || receiptData.business?.phone ? (
-                <p className='text-sm print:text-[9pt] receipt-contact'>
-                  Tel: {receiptData.outlet?.phone ||
-                    receiptData.business?.phone ||
-                    ''}
-                </p>
-              ) : null}
-              {receiptData.outlet?.email || receiptData.business?.email ? (
-                <p className='text-sm print:text-[9pt] receipt-contact'>
-                  Email: {receiptData.outlet?.email ||
-                    receiptData.business?.email ||
-                    ''}
-                </p>
-              ) : null}
+                    receiptData.business?.address}
+                </div>
+              )}
+              {(receiptData.outlet?.phone || receiptData.business?.phone) && (
+                <div className='store-phone'>
+                  {receiptData.outlet?.phone || receiptData.business?.phone}
+                </div>
+              )}
             </div>
 
-            {/* Divider */}
-            <div className='receipt-divider'></div>
+            <hr className='divider' />
 
-            {/* Transaction Info */}
-            <div className='receipt-info mb-3 print:mb-2'>
-              <div className='receipt-info-row'>
-                <span className='receipt-info-label'>Struk:</span>
-                <span className='receipt-info-value'>{receiptData.print_info?.receipt_number || 'N/A'}</span>
+            {/* TRANSACTION INFO */}
+            <div className='transaction-info'>
+              <div className='info-row'>
+                <span className='info-label'>No. Struk</span>
+                <span className='info-value'>
+                  {receiptData.print_info?.receipt_number || 'N/A'}
+                </span>
               </div>
-              <div className='receipt-info-row'>
-                <span className='receipt-info-label'>Order:</span>
-                <span className='receipt-info-value'>{receiptData.order?.order_number || 'N/A'}</span>
-              </div>
-              <div className='receipt-info-row'>
-                <span className='receipt-info-label'>Tanggal:</span>
-                <span className='receipt-info-value'>
+              <div className='info-row'>
+                <span className='info-label'>Tanggal</span>
+                <span className='info-value'>
                   {receiptData.order?.ordered_at
-                    ? new Date(receiptData.order.ordered_at).toLocaleString(
-                        'id-ID',
-                        {
-                          day: '2-digit',
-                          month: 'short',
-                          year: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        }
-                      )
+                    ? new Date(
+                        receiptData.order.ordered_at
+                      ).toLocaleString('id-ID', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })
                     : 'N/A'}
                 </span>
               </div>
-              <div className='receipt-info-row'>
-                <span className='receipt-info-label'>Kasir:</span>
-                <span className='receipt-info-value'>{receiptData.cashier?.name || 'Kasir'}</span>
+              <div className='info-row'>
+                <span className='info-label'>Kasir</span>
+                <span className='info-value'>
+                  {receiptData.cashier?.name || 'Kasir'}
+                </span>
               </div>
-              <div className='receipt-info-row'>
-                <span className='receipt-info-label'>Pelanggan:</span>
-                <span className='receipt-info-value'>
+              <div className='info-row'>
+                <span className='info-label'>Pelanggan</span>
+                <span className='info-value'>
                   {receiptData.customer?.name ||
                     receiptData.order?.customer_name ||
                     'Walk-in Customer'}
                 </span>
               </div>
-            </div>
-
-            {/* Divider */}
-            <div className='receipt-divider'></div>
-
-            {/* Items */}
-            <div className='receipt-items mb-3 print:mb-2'>
-              <table className='w-full receipt-items-table'>
-                <thead>
-                  <tr className='receipt-table-header'>
-                    <th className='receipt-col-item'>ITEM</th>
-                    <th className='receipt-col-qty'>QTY</th>
-                    <th className='receipt-col-price'>HARGA</th>
-                    <th className='receipt-col-subtotal'>SUBTOTAL</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(receiptData.items || []).map((item, index) => (
-                    <tr key={index} className='receipt-table-row'>
-                      <td className='receipt-col-item'>
-                        <div className='receipt-item-name'>{item.product_name || 'N/A'}</div>
-                        {item.variant_name && (
-                          <div className='receipt-item-variant'>({item.variant_name})</div>
-                        )}
-                      </td>
-                      <td className='receipt-col-qty receipt-text-center'>
-                        {item.quantity || 0}
-                      </td>
-                      <td className='receipt-col-price receipt-text-right'>
-                        {formatCurrency(item.price || 0)}
-                      </td>
-                      <td className='receipt-col-subtotal receipt-text-right'>
-                        <span className='receipt-text-bold'>{formatCurrency(item.subtotal || 0)}</span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Divider */}
-            <div className='receipt-divider'></div>
-
-            {/* Totals */}
-            <div className='receipt-totals mb-3 print:mb-2'>
-              <div className='receipt-total-row'>
-                <span className='receipt-total-label'>Subtotal:</span>
-                <span className='receipt-total-value'>
-                  {formatCurrency(receiptData.order?.subtotal || 0)}
-                </span>
-              </div>
-              {receiptData.order?.tax_amount > 0 && (
-                <div className='receipt-total-row'>
-                  <span className='receipt-total-label'>Pajak:</span>
-                  <span className='receipt-total-value'>
-                    {formatCurrency(receiptData.order?.tax_amount || 0)}
+              {receiptData.order?.queue_number && (
+                <div className='info-row'>
+                  <span className='info-label'>No. Antrian</span>
+                  <span className='info-value'>
+                    {receiptData.order.queue_number}
                   </span>
                 </div>
               )}
-              {receiptData.order?.discount_amount > 0 && (
-                <div className='receipt-total-row receipt-discount'>
-                  <span className='receipt-total-label'>
-                    Diskon{receiptData.order?.coupon_code
-                      ? ` (${receiptData.order.coupon_code})`
-                      : ''}:
-                  </span>
-                  <span className='receipt-total-value'>
-                    -{formatCurrency(receiptData.order.discount_amount)}
+              {receiptData.queue_number && (
+                <div className='info-row'>
+                  <span className='info-label'>No. Antrian</span>
+                  <span className='info-value'>
+                    {receiptData.queue_number}
                   </span>
                 </div>
               )}
-              <div className='receipt-total-row receipt-total-final'>
-                <span className='receipt-total-label receipt-text-bold'>TOTAL:</span>
-                <span className='receipt-total-value receipt-text-bold'>
-                  {formatCurrency(receiptData.order?.total || 0)}
-                </span>
-              </div>
             </div>
 
-            {/* Divider */}
-            <div className='receipt-divider'></div>
+            <hr className='divider' />
 
-            {/* Payments */}
-            <div className='receipt-payments mb-3 print:mb-2'>
-              {(receiptData.payments || []).map((payment, index) => (
-                <div key={index} className='receipt-payment-row'>
-                  <span className='receipt-payment-label'>
-                    Pembayaran: {(payment.method || 'N/A').toUpperCase()}
-                  </span>
-                  <span className='receipt-payment-value'>
-                    {formatCurrency(payment.amount || 0)}
-                  </span>
+            {/* ITEMS SECTION */}
+            <div className='items-section'>
+              {(receiptData.items || []).map((item, index) => (
+                <div key={index} className='item-block'>
+                  <div className='item-name-row'>
+                    {item.product_name || 'N/A'}
+                  </div>
+                  <div className='item-details-row'>
+                    <span className='item-qty-price'>
+                      {item.quantity || 0}x @{formatCurrency(item.price || 0)}
+                    </span>
+                    <span className='item-subtotal'>
+                      {formatCurrency(item.subtotal || 0)}
+                    </span>
+                  </div>
+                  {index < (receiptData.items || []).length - 1 && (
+                    <div className='item-divider'></div>
+                  )}
                 </div>
               ))}
-              <div className='receipt-payment-row receipt-change'>
-                <span className='receipt-payment-label'>Kembalian:</span>
-                <span className='receipt-payment-value'>
-                  {formatCurrency(receiptData.order?.change_amount || 0)}
+            </div>
+
+            <hr className='divider' />
+
+            {/* TOTALS SECTION */}
+            <div className='totals-section'>
+              <div className='total-row'>
+                <span>Subtotal</span>
+                <span>{formatCurrencyWithRp(receiptData.order?.subtotal || 0)}</span>
+              </div>
+              {receiptData.order?.discount_amount > 0 && (
+                <div className='total-row discount'>
+                  <span>
+                    Diskon
+                    {receiptData.order?.coupon_code
+                      ? ` (${receiptData.order.coupon_code})`
+                      : ''}
+                  </span>
+                  <span>
+                    -{formatCurrencyWithRp(receiptData.order.discount_amount)}
+                  </span>
+                </div>
+              )}
+              {receiptData.order?.tax_amount > 0 && (
+                <div className='total-row'>
+                  <span>PPN</span>
+                  <span>
+                    {formatCurrencyWithRp(receiptData.order?.tax_amount || 0)}
+                  </span>
+                </div>
+              )}
+              <div className='total-row grand-total'>
+                <span>GRAND TOTAL</span>
+                <span>
+                  {formatCurrencyWithRp(receiptData.order?.total || 0)}
                 </span>
               </div>
             </div>
 
-            {/* Divider */}
-            <div className='receipt-divider'></div>
+            <hr className='divider' />
 
-            {/* Footer */}
-            <div className='receipt-footer'>
-              <p className='receipt-footer-text'>Terima kasih atas kunjungan Anda!</p>
+            {/* PAYMENT SECTION */}
+            <div className='payment-section'>
+              <div className='payment-row'>
+                <span>Metode Bayar</span>
+                <span className='payment-method'>
+                  {(
+                    (receiptData.payments || [])[0]?.method || 'N/A'
+                  ).toUpperCase()}
+                </span>
+              </div>
+              <div className='payment-row'>
+                <span>Jumlah Bayar</span>
+                <span>
+                  {formatCurrencyWithRp(
+                    (receiptData.payments || []).reduce(
+                      (sum, payment) =>
+                        sum + (Number(payment.amount) || 0),
+                      0
+                    )
+                  )}
+                </span>
+              </div>
+              <div className='payment-row'>
+                <span>Kembalian</span>
+                <span>
+                  {formatCurrencyWithRp(
+                    receiptData.order?.change_amount || 0
+                  )}
+                </span>
+              </div>
+            </div>
+
+            <hr className='divider' />
+
+            {/* FOOTER SECTION */}
+            <div className='footer'>
+              <div className='barcode-placeholder'>
+                {/* Scannable barcode generated from receipt number */}
+                <div ref={barcodeRef} className='barcode-svg-container'></div>
+                <div className='receipt-number-barcode'>
+                  {receiptData.print_info?.receipt_number ||
+                    receiptData.order?.order_number ||
+                    ''}
+                </div>
+              </div>
+              <div className='thank-you'>Terima Kasih!</div>
               {receiptData.custom_footer_message ? (
-                <div className='receipt-footer-custom'>
-                  {receiptData.custom_footer_message.split('\n').map((line, index) => (
-                    <p key={index} className='receipt-footer-text'>
-                      {line}
-                    </p>
-                  ))}
+                <div className='footer-message'>
+                  {receiptData.custom_footer_message
+                    .split('\n')
+                    .map((line, index) => (
+                      <div key={index}>{line}</div>
+                    ))}
                 </div>
               ) : (
-                <p className='receipt-footer-text'>Barang yang sudah dibeli tidak dapat dikembalikan</p>
+                <>
+                  <div className='footer-message'>
+                    Simpan struk ini sebagai bukti pembayaran
+                  </div>
+                  <div className='footer-message'>Follow us @kopiharmoni</div>
+                </>
               )}
-              <p className='receipt-footer-print'>
-                Dicetak: {receiptData.print_info?.printed_at || new Date().toLocaleString('id-ID')}
-              </p>
+              <div className='printed-time'>
+                Dicetak:{' '}
+                {receiptData.print_info?.printed_at ||
+                  new Date().toLocaleString('id-ID')}
+              </div>
             </div>
           </div>
         ) : null}

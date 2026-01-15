@@ -431,7 +431,7 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'subscription.check', 'throttle
     // Receipt Footer Message API (accessible by all authenticated users, but update requires admin/owner)
     Route::prefix('settings')->group(function () {
         Route::get('/receipt-footer-message', [SettingsController::class, 'getReceiptFooterMessage']);
-        Route::put('/receipt-footer-message', [SettingsController::class, 'updateReceiptFooterMessage'])->middleware('role:admin,owner');
+        Route::put('/receipt-footer-message', [SettingsController::class, 'updateReceiptFooterMessage'])->middleware('check.admin.role');
     });
 
     // Expense API

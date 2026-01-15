@@ -161,6 +161,9 @@ const CashierPOS = () => {
   const [couponCode, setCouponCode] = useState('');
   const [appliedDiscount, setAppliedDiscount] = useState(null); // {code, type: 'percent'|'amount', value, amount}
 
+  // Queue number
+  const [queueNumber, setQueueNumber] = useState('');
+
   // Barcode scanner state
   const [scanMode, setScanMode] = useState(false);
   const [barcodeInput, setBarcodeInput] = useState('');
@@ -1016,6 +1019,7 @@ const CashierPOS = () => {
     if (window.confirm('Hapus semua item dari keranjang?')) {
       setCart([]);
       setSelectedCustomer(null);
+      setQueueNumber('');
       toast.success('Keranjang dikosongkan');
     }
   };
@@ -1078,6 +1082,8 @@ const CashierPOS = () => {
         : 'Walk-in Customer',
       // Tambahkan flag untuk deferred payment
       deferred_payment: deferredPayment,
+      // Tambahkan queue number jika ada
+      queue_number: queueNumber.trim() || null,
     };
 
     console.log('💳 Creating order:', orderData);
@@ -1357,6 +1363,7 @@ const CashierPOS = () => {
       // Clear cart and customer
       setCart([]);
       setSelectedCustomer(null);
+      setQueueNumber('');
 
       // Reload products to update stock
       await loadProducts();
@@ -1943,6 +1950,21 @@ const CashierPOS = () => {
                       >
                         <Trash2 className='w-3 h-3' />
                       </Button>
+                    </div>
+                  )}
+                  {/* Queue Number Input - Always visible when cart has items */}
+                  {cart.length > 0 && (
+                    <div className='mt-2 p-2 bg-gray-50 rounded-lg space-y-1'>
+                      <label className='text-xs font-medium text-gray-700'>
+                        No. Antrian / Meja
+                      </label>
+                      <Input
+                        placeholder='Contoh: 5, A1, Meja 3...'
+                        value={queueNumber}
+                        onChange={e => setQueueNumber(e.target.value)}
+                        className='text-sm h-8'
+                        maxLength={20}
+                      />
                     </div>
                   )}
                 </CardHeader>

@@ -10,6 +10,8 @@ class OutletSetting extends Model
 {
     use HasFactory;
 
+    protected $table = 'outlet_settings';
+
     protected $fillable = [
         'outlet_id',
         'setting_key',
@@ -17,6 +19,8 @@ class OutletSetting extends Model
         'data_type',
         'description',
     ];
+
+    public $timestamps = true;
 
     /**
      * Get the outlet that owns the setting.

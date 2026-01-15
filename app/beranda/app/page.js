@@ -1557,7 +1557,7 @@ export default function LandingPage() {
                   </li>
                   <li className="flex items-center space-x-2">
                     <FiMapPin className="w-4 h-4" />
-                    <span>Jakarta, Indonesia</span>
+                    <span>Indonesia</span>
                   </li>
                 </ul>
               </div>

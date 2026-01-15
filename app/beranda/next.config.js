@@ -1,5 +1,9 @@
+const path = require('path');
+
 const nextConfig = {
   output: 'standalone',
+  // ✅ FIX: Set outputFileTracingRoot to silence lockfiles warning
+  outputFileTracingRoot: path.join(__dirname),
   images: {
     unoptimized: true,
     // ✅ SEO: Add image optimization for better performance
@@ -7,10 +11,8 @@ const nextConfig = {
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
-  experimental: {
-    // Remove if not using Server Components
-    serverComponentsExternalPackages: ['mongodb'],
-  },
+  // ✅ FIX: Next.js 15 - serverComponentsExternalPackages moved to serverExternalPackages
+  serverExternalPackages: ['mongodb'],
   // ✅ SEO: Enable compression
   compress: true,
   // ✅ SEO: Generate source maps for better debugging (disable in production)

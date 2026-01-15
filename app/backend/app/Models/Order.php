@@ -13,7 +13,7 @@ class Order extends Model
 
     protected $fillable = [
         'order_number', 'receipt_token', 'business_id', 'outlet_id', 'customer_id',
-        'table_id', 'employee_id', 'shift_id', 'type', 'status', 'subtotal',
+        'table_id', 'queue_number', 'employee_id', 'shift_id', 'type', 'status', 'subtotal',
         'tax_amount', 'discount_amount', 'discount_id', 'coupon_code', 'service_charge',
         'delivery_fee', 'total', 'paid_amount', 'change_amount',
         'payment_status', 'customer_data', 'notes', 'ordered_at'

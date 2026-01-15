@@ -16,6 +16,26 @@ if (-not (Test-Path $berandaPath)) {
 Write-Host "📁 Beranda Path: $berandaPath" -ForegroundColor Cyan
 Write-Host ""
 
+# Cek apakah port 3001 sudah digunakan
+Write-Host "🔍 Mengecek port 3001..." -ForegroundColor Yellow
+$portInUse = netstat -ano | findstr :3001 | findstr LISTENING
+if ($portInUse) {
+    Write-Host "⚠️  Port 3001 sudah digunakan!" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "💡 Solusi:" -ForegroundColor Yellow
+    Write-Host "   1. Jalankan .\kill-port-3001.ps1 untuk menghentikan proses" -ForegroundColor White
+    Write-Host "   2. Atau tutup aplikasi yang menggunakan port 3001" -ForegroundColor White
+    Write-Host ""
+    Write-Host "Proses yang menggunakan port 3001:" -ForegroundColor Cyan
+    $portInUse | ForEach-Object { Write-Host "   $_" -ForegroundColor Gray }
+    Write-Host ""
+    Read-Host "Tekan Enter untuk keluar"
+    exit 1
+}
+
+Write-Host "✅ Port 3001 tersedia" -ForegroundColor Green
+Write-Host ""
+
 # Jalankan Next.js Development Server
 Write-Host "⚛️ Memulai Next.js Development Server..." -ForegroundColor Yellow
 Write-Host "   Command: npm run dev" -ForegroundColor Cyan

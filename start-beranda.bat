@@ -21,6 +21,23 @@ if not exist "%BERANDA_PATH%" (
     exit /b 1
 )
 
+REM Cek apakah port 3001 sudah digunakan
+echo 🔍 Mengecek port 3001...
+netstat -ano | findstr :3001 | findstr LISTENING >nul
+if %errorlevel% == 0 (
+    echo ⚠️  Port 3001 sudah digunakan!
+    echo.
+    echo 💡 Solusi:
+    echo    1. Jalankan kill-port-3001.bat untuk menghentikan proses
+    echo    2. Atau tutup aplikasi yang menggunakan port 3001
+    echo.
+    pause
+    exit /b 1
+)
+
+echo ✅ Port 3001 tersedia
+echo.
+
 echo ⚛️ Memulai Next.js Development Server...
 echo    Command: npm run dev
 echo    URL: http://localhost:3001

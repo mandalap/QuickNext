@@ -31,6 +31,7 @@ class POSController extends Controller
         $validator = Validator::make($request->all(), [
             'customer_id' => 'nullable|exists:customers,id',
             'table_id' => 'nullable|exists:tables,id',
+            'queue_number' => 'nullable|string|max:20',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|integer|min:1',
@@ -167,6 +168,7 @@ class POSController extends Controller
                 'outlet_id' => $outlet->id,
                 'customer_id' => $request->customer_id,
                 'table_id' => $request->table_id ?? null,
+                'queue_number' => $request->queue_number ?? null,
                 // Store employee_id, not user_id, so relations (employee.user) resolve correctly
                 'employee_id' => $employee?->id ?? null,
                 'shift_id' => $shiftId, // ← TAMBAHKAN SHIFT ID
@@ -790,6 +792,7 @@ class POSController extends Controller
                 'order' => [
                     'id' => $order->id,
                     'order_number' => $order->order_number,
+                    'queue_number' => $order->queue_number,
                     'status' => $order->status,
                     'payment_status' => $order->payment_status,
                     'subtotal' => (float) $order->subtotal,

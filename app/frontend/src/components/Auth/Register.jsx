@@ -1,11 +1,18 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Eye, EyeOff, Loader2, Phone, CheckCircle, XCircle } from 'lucide-react';
+import axios from 'axios';
+import {
+  CheckCircle,
+  Eye,
+  EyeOff,
+  Loader2,
+  Phone,
+  XCircle,
+} from 'lucide-react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { toast } from 'react-hot-toast';
 import { Link, useNavigate } from 'react-router-dom';
 import * as z from 'zod';
-import axios from 'axios';
-import { toast } from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { Alert, AlertDescription } from '../ui/alert';
 import { Button } from '../ui/button';
@@ -26,7 +33,10 @@ const registerSchema = z
   .object({
     name: z.string().min(1, 'Nama wajib diisi'),
     email: z.string().email('Email tidak valid'),
-    phone: z.string().min(10, 'Nomor WhatsApp wajib diisi').regex(/^(\+62|62|0)[0-9]{9,12}$/, 'Format nomor WhatsApp tidak valid'),
+    phone: z
+      .string()
+      .min(10, 'Nomor WhatsApp wajib diisi')
+      .regex(/^(\+62|62|0)[0-9]{9,12}$/, 'Format nomor WhatsApp tidak valid'),
     password: z.string().min(8, 'Password minimal 8 karakter'),
     password_confirmation: z.string(),
   })
@@ -70,7 +80,9 @@ const Register = () => {
     // Validate phone format
     const phoneRegex = /^(\+62|62|0)[0-9]{9,12}$/;
     if (!phoneRegex.test(phoneToVerify.trim())) {
-      toast.error('Format nomor WhatsApp tidak valid. Gunakan format: 081234567890');
+      toast.error(
+        'Format nomor WhatsApp tidak valid. Gunakan format: 081234567890'
+      );
       return;
     }
 
@@ -130,7 +142,9 @@ const Register = () => {
 
       if (response.data.success) {
         setOtpVerified(true);
-        toast.success('Nomor WhatsApp berhasil diverifikasi! Sekarang Anda bisa mendaftar.');
+        toast.success(
+          'Nomor WhatsApp berhasil diverifikasi! Sekarang Anda bisa mendaftar.'
+        );
       } else {
         toast.error(response.data.message || 'Kode OTP tidak valid');
       }
@@ -180,7 +194,7 @@ const Register = () => {
       const errorMsg = result.error || 'Registrasi gagal. Silakan coba lagi.';
       setError(errorMsg);
       toast.error(errorMsg);
-      
+
       // ✅ FIX: Set field-specific errors if available
       if (result.errors) {
         Object.keys(result.errors).forEach(field => {
@@ -274,7 +288,10 @@ const Register = () => {
               {/* OTP Verification Section */}
               {otpSent && !otpVerified && (
                 <div className='mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg'>
-                  <Label htmlFor='otp' className='text-sm font-medium text-blue-900'>
+                  <Label
+                    htmlFor='otp'
+                    className='text-sm font-medium text-blue-900'
+                  >
                     Masukkan Kode OTP (6 digit)
                   </Label>
                   <div className='flex gap-2 mt-2'>
@@ -283,7 +300,9 @@ const Register = () => {
                       type='text'
                       value={otpCode}
                       onChange={e => {
-                        const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+                        const value = e.target.value
+                          .replace(/\D/g, '')
+                          .slice(0, 6);
                         setOtpCode(value);
                       }}
                       placeholder='123456'
@@ -300,8 +319,8 @@ const Register = () => {
                     </Button>
                   </div>
                   <p className='text-xs text-blue-700 mt-2'>
-                    Kode OTP telah dikirim ke WhatsApp Anda. Masukkan 6 digit kode
-                    yang diterima.
+                    Kode OTP telah dikirim ke WhatsApp Anda. Masukkan 6 digit
+                    kode yang diterima.
                   </p>
                 </div>
               )}
@@ -315,8 +334,8 @@ const Register = () => {
               ) : (
                 <p className='text-sm text-red-600 flex items-center gap-1'>
                   <XCircle className='w-4 h-4' />
-                  Nomor WhatsApp belum diverifikasi. Klik &quot;Kirim OTP&quot; untuk
-                  memverifikasi.
+                  Nomor WhatsApp belum diverifikasi. Klik &quot;Kirim OTP&quot;
+                  untuk memverifikasi.
                 </p>
               )}
             </div>
@@ -379,9 +398,9 @@ const Register = () => {
               )}
             </div>
 
-            <Button 
-              type='submit' 
-              className='w-full' 
+            <Button
+              type='submit'
+              className='w-full'
               disabled={isSubmitting || !otpVerified}
             >
               {isSubmitting ? (
@@ -393,10 +412,11 @@ const Register = () => {
                 'Daftar'
               )}
             </Button>
-            
+
             {!otpVerified && (
               <p className='text-sm text-center text-red-600'>
-                Silakan verifikasi nomor WhatsApp terlebih dahulu sebelum mendaftar
+                Silakan verifikasi nomor WhatsApp terlebih dahulu sebelum
+                mendaftar
               </p>
             )}
           </form>
@@ -408,8 +428,9 @@ const Register = () => {
               variant='outline'
               className='w-full'
               onClick={() => {
-                window.location.href =
-                  'http://localhost:8000/auth/google/redirect';
+                const backendUrl =
+                  process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
+                window.location.href = `${backendUrl}/auth/google/redirect`;
               }}
             >
               Daftar dengan Google

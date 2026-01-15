@@ -59,6 +59,8 @@ const Layout = () => {
   const [isUpdating, setIsUpdating] = useState(false);
   const [showAccessDeniedModal, setShowAccessDeniedModal] = useState(false);
   const [accessDeniedFeature, setAccessDeniedFeature] = useState(null);
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [isPWAInstalled, setIsPWAInstalled] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -107,6 +109,66 @@ const Layout = () => {
       }
     }
   }, [currentBusiness?.subscription_info?.plan_name, currentBusiness?.id, loadBusinesses]);
+
+  // PWA Install Prompt Handler
+  useEffect(() => {
+    // Check if PWA is already installed
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+    const isIOSStandalone = window.navigator.standalone === true;
+    setIsPWAInstalled(isStandalone || isIOSStandalone);
+
+    // Listen for beforeinstallprompt event
+    const handleBeforeInstallPrompt = (e) => {
+      // Prevent the mini-infobar from appearing on mobile
+      e.preventDefault();
+      // Save the event so it can be triggered later
+      setDeferredPrompt(e);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    // Listen for app installed event
+    const handleAppInstalled = () => {
+      setIsPWAInstalled(true);
+      setDeferredPrompt(null);
+      toast.success('Aplikasi berhasil diinstall!');
+    };
+
+    window.addEventListener('appinstalled', handleAppInstalled);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
+  }, []);
+
+  // Handle PWA Install
+  const handleInstallPWA = async () => {
+    if (!deferredPrompt) {
+      toast.error('Aplikasi sudah terinstall atau tidak dapat diinstall di browser ini');
+      return;
+    }
+
+    try {
+      // Show the install prompt
+      deferredPrompt.prompt();
+
+      // Wait for the user to respond to the prompt
+      const { outcome } = await deferredPrompt.userChoice;
+
+      if (outcome === 'accepted') {
+        toast.success('Menginstall aplikasi...');
+      } else {
+        toast('Installasi dibatalkan', { icon: 'ℹ️' });
+      }
+
+      // Clear the deferredPrompt
+      setDeferredPrompt(null);
+    } catch (error) {
+      console.error('Error installing PWA:', error);
+      toast.error('Terjadi kesalahan saat menginstall aplikasi');
+    }
+  };
 
   const handleLogout = () => {
     logout();
@@ -1263,6 +1325,22 @@ const Layout = () => {
                       <span>Subscription</span>
                     </DropdownMenuItem>
                   )}
+                  
+                  {/* PWA Install Button - Only show if not installed and prompt is available */}
+                  {!isPWAInstalled && deferredPrompt && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={handleInstallPWA}
+                        data-testid='install-pwa-menu'
+                        className='text-green-600 focus:text-green-700'
+                      >
+                        <Smartphone className='w-4 h-4 mr-2' />
+                        <span>Install Aplikasi</span>
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={handleLogout}

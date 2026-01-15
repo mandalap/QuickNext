@@ -250,7 +250,7 @@ class SubscriptionController extends Controller
     {
         try {
             $user = Auth::user();
-            
+
             if (!$user) {
                 return response()->json([
                     'success' => false,
@@ -384,11 +384,36 @@ class SubscriptionController extends Controller
             ->first();
 
         if (!$subscription) {
+            // ✅ FIX: Return 200 OK (not 404) when user has no subscription
+            // This is normal for new users - they should see subscription plans page
             return response()->json([
-                'success' => false,
+                'success' => true,
                 'message' => 'No active subscription found',
                 'has_subscription' => false,
-            ], 404);
+                'is_trial' => false,
+                'trial_ended' => true,
+                'is_pending_payment' => false,
+                'subscription_status' => null,
+                'data' => null,
+                'plan_features' => [
+                    'has_advanced_reports' => false,
+                    'has_reports_access' => false,
+                    'has_kitchen_access' => false,
+                    'has_tables_access' => false,
+                    'has_attendance_access' => false,
+                    'has_inventory_access' => false,
+                    'has_promo_access' => false,
+                    'has_stock_transfer_access' => false,
+                    'has_self_service_access' => false,
+                    'has_online_integration' => false,
+                    'has_api_access' => false,
+                    'has_multi_location' => false,
+                    'max_businesses' => 1,
+                    'max_outlets' => 1,
+                    'max_products' => 100,
+                    'max_employees' => 5,
+                ],
+            ], 200);
         }
 
         // Check if subscription is still active (not expired)

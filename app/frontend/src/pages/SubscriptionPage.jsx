@@ -130,7 +130,7 @@ const SubscriptionPage = () => {
           // No payment required (free upgrade or already paid)
           toast({
             title: 'Upgrade Berhasil!',
-            description: 'Paket berhasil diupgrade dan langsung aktif! Memuat ulang data...',
+            description: 'Paket berhasil diupgrade dan langsung aktif! Mengalihkan ke dashboard...',
             variant: 'success',
           });
 
@@ -139,10 +139,11 @@ const SubscriptionPage = () => {
           await loadBusinesses();
           await fetchCurrentSubscription();
 
-          // Reload page after 2 seconds to show new subscription
+          // ✅ FIX: Redirect to dashboard instead of window.location.reload()
+          // This prevents infinite reload loops caused by share-modal.js errors
           setTimeout(() => {
-            window.location.reload();
-          }, 2000);
+            navigate('/', { replace: true });
+          }, 1500);
         }
       }
     } catch (err) {

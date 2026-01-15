@@ -5,6 +5,40 @@ import './index.css';
 // ✅ UTILITY: Import clear data utilities (available in console)
 import './utils/clearAllData';
 
+// ✅ FIX: Prevent infinite reload loops (e.g., from share-modal.js)
+// This detects if page is being reloaded multiple times and stops it
+(function () {
+  const RELOAD_KEY = '__qk_reload_count__';
+  const RELOAD_TIME_WINDOW = 5000; // 5 seconds
+  const MAX_RELOADS = 3; // Max 3 reloads in 5 seconds
+
+  const reloadData = JSON.parse(sessionStorage.getItem(RELOAD_KEY) || '{"count":0,"timestamp":0}');
+  const now = Date.now();
+
+  // Reset count if outside time window
+  if (now - reloadData.timestamp > RELOAD_TIME_WINDOW) {
+    reloadData.count = 0;
+    reloadData.timestamp = now;
+  } else {
+    reloadData.count++;
+  }
+
+  // If too many reloads, prevent further reloads and show warning
+  if (reloadData.count > MAX_RELOADS) {
+    console.error('🚫 Infinite reload detected! Stopping reload to prevent browser crash.');
+    // Prevent any reload attempts
+    window.stop(); // Stop page loading
+    // Disable window.location.reload
+    const originalReload = window.location.reload;
+    window.location.reload = function() {
+      console.warn('⚠️ Reload blocked to prevent infinite loop. Please clear localStorage and refresh manually.');
+      return false;
+    };
+  }
+
+  sessionStorage.setItem(RELOAD_KEY, JSON.stringify(reloadData));
+})();
+
 // ✅ FIX: Global error handler to catch errors from external scripts (like share-modal.js)
 // This prevents errors from breaking the entire app
 // Attach early, before React loads
