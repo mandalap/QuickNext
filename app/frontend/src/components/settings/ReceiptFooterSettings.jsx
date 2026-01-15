@@ -208,7 +208,7 @@ function ReceiptFooterSettings({ outletId, outletName }) {
         )}
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default ReceiptFooterSettings;
+export default ReceiptFooterSettings
