@@ -296,9 +296,13 @@ export default function LandingPage() {
 
   // ✅ Redirect ke halaman login di frontend
   const redirectToLogin = () => {
-    // Frontend React app biasanya di localhost:3000, beranda di localhost:3001
+    // Frontend React app di app.quickkasir.com (production) atau localhost:3000 (development)
     const frontendUrl =
-      process.env.NEXT_PUBLIC_FRONTEND_URL || "http://localhost:3000";
+      process.env.NEXT_PUBLIC_APP_URL || 
+      process.env.NEXT_PUBLIC_FRONTEND_URL || 
+      (typeof window !== 'undefined' && window.location.hostname === 'localhost' 
+        ? 'http://localhost:3000' 
+        : 'http://app.quickkasir.com');
     window.location.href = `${frontendUrl}/login`;
   };
 
