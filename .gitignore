@@ -101,5 +101,5 @@ app/frontend/public/sw.js
 app/frontend/public/workbox-*.js
 
 # PWA
-app/frontend/public/manifest.json
+# app/frontend/public/manifest.json - Keep this file, it's needed for PWA
 
