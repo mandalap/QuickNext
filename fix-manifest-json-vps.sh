@@ -10,17 +10,106 @@ echo "🔧 Fixing manifest.json 404 Error..."
 echo ""
 
 # ==========================================
-# STEP 1: Verifikasi File Source
+# STEP 1: Verifikasi/Create File Source
 # ==========================================
-echo "=== STEP 1: Verify Source File ==="
+echo "=== STEP 1: Verify/Create Source File ==="
 cd /var/www/quickkasir/app/frontend
 
 if [ -f public/manifest.json ]; then
     echo "✅ manifest.json exists in public folder"
 else
-    echo "❌ manifest.json NOT found in public folder!"
-    echo "Please check if file exists at: app/frontend/public/manifest.json"
-    exit 1
+    echo "⚠️ manifest.json NOT found in public folder, creating..."
+    
+    # Create manifest.json
+    cat > public/manifest.json << 'EOF'
+{
+  "short_name": "QuickKasir",
+  "name": "QuickKasir - Kasir POS System",
+  "description": "Sistem POS Multi-Outlet untuk Restaurant & Retail",
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "icon-16x16.png",
+      "sizes": "16x16",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-32x32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-48x48.png",
+      "sizes": "48x48",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-72x72.png",
+      "sizes": "72x72",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-96x96.png",
+      "sizes": "96x96",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-144x144.png",
+      "sizes": "144x144",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-180x180.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#2563eb",
+  "background_color": "#ffffff",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "shortcuts": [
+    {
+      "name": "Kasir POS",
+      "short_name": "POS",
+      "description": "Buka POS untuk transaksi",
+      "url": "/cashier/pos",
+      "icons": [{ "src": "logo-qk.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "Lihat dashboard",
+      "url": "/dashboard",
+      "icons": [{ "src": "logo-qk.png", "sizes": "192x192" }]
+    }
+  ],
+  "categories": ["business", "productivity", "finance"],
+  "screenshots": [],
+  "prefer_related_applications": false
+}
+EOF
+    
+    echo "✅ manifest.json created"
 fi
 
 # ==========================================
