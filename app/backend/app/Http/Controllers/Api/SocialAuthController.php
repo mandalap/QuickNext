@@ -56,13 +56,33 @@ class SocialAuthController extends Controller
 
             /** @var PersonalAccessTokenResult $token */
             $token = $user->createToken('API Token');
-            $frontendUrl = env('FRONTEND_URL', 'http://localhost:3000');
+            // Get FRONTEND_URL from env with proper fallback for production
+            $frontendUrl = env('FRONTEND_URL', 'https://app.quickkasir.com');
+            // Ensure it's HTTPS in production
+            if (app()->environment('production') && !str_starts_with($frontendUrl, 'https://')) {
+                $frontendUrl = str_replace('http://', 'https://', $frontendUrl);
+            }
             $redirectUrl = $frontendUrl . '/login/sso?token=' . urlencode($token->plainTextToken);
+
+            Log::info('Google OAuth success redirect', [
+                'frontend_url' => $frontendUrl,
+                'redirect_url' => $redirectUrl,
+                'user_id' => $user->id,
+                'env' => app()->environment()
+            ]);
 
             return redirect()->away($redirectUrl);
         } catch (\Throwable $e) {
-            Log::error('Google OAuth failed', ['error' => $e->getMessage()]);
-            $frontendUrl = env('FRONTEND_URL', 'http://localhost:3000');
+            Log::error('Google OAuth failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            // Get FRONTEND_URL from env with proper fallback for production
+            $frontendUrl = env('FRONTEND_URL', 'https://app.quickkasir.com');
+            // Ensure it's HTTPS in production
+            if (app()->environment('production') && !str_starts_with($frontendUrl, 'https://')) {
+                $frontendUrl = str_replace('http://', 'https://', $frontendUrl);
+            }
             return redirect()->away($frontendUrl . '/login?oauth_error=1');
         }
     }

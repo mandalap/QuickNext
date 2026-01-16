@@ -11,12 +11,15 @@
 ## ✅ SOLUSI 1: Fix Login Redirect di Landing Page
 
 ### Problem:
+
 Button "Login" / "Coba Gratis" mengarah ke `http://localhost:3000/login` padahal harus ke `http://app.quickkasir.com/login`
 
 ### Fix:
+
 File sudah di-update: `app/beranda/app/page.js`
 
 **Perubahan:**
+
 - Menggunakan `NEXT_PUBLIC_APP_URL` dari environment
 - Fallback ke `app.quickkasir.com` untuk production
 - Fallback ke `localhost:3000` hanya untuk development
@@ -30,8 +33,12 @@ cd /var/www/quickkasir/app/beranda
 cat .env.production
 # Harus ada: NEXT_PUBLIC_APP_URL=http://app.quickkasir.com
 
-# Rebuild
+# Opsi 1: Build langsung (biasanya cukup)
 npm run build
+
+# Opsi 2: Clear build lama jika ada masalah (optional)
+# rm -rf .next
+# npm run build
 
 # Restart PM2
 pm2 restart quickkasir-landing
@@ -42,7 +49,9 @@ pm2 restart quickkasir-landing
 ## ✅ SOLUSI 2: Fix admin.quickkasir.com Error 500
 
 ### Problem:
+
 Error 500 biasanya karena:
+
 - Permission issues
 - PHP-FPM tidak running
 - Laravel error
@@ -110,7 +119,9 @@ php artisan config:cache
 ## ✅ SOLUSI 3: Fix app.quickkasir.com Loading
 
 ### Problem:
+
 Frontend hanya loading, tidak muncul. Kemungkinan:
+
 - PM2 tidak running
 - Port 3000 tidak accessible
 - Nginx proxy tidak bekerja
@@ -126,6 +137,7 @@ pm2 logs quickkasir-frontend
 ```
 
 **Jika tidak running:**
+
 ```bash
 cd /var/www/quickkasir
 pm2 start ecosystem.config.js
@@ -143,6 +155,7 @@ sudo ss -tulpn | grep :3000
 ```
 
 **Jika tidak ada, restart PM2:**
+
 ```bash
 pm2 restart quickkasir-frontend
 ```
@@ -186,8 +199,12 @@ cat .env.production
 ```bash
 cd /var/www/quickkasir/app/frontend
 
-# Rebuild
+# Opsi 1: Build langsung (biasanya cukup)
 npm run build
+
+# Opsi 2: Clear build lama jika ada masalah (optional)
+# rm -rf build
+# npm run build
 
 # Restart PM2
 pm2 restart quickkasir-frontend
@@ -230,12 +247,14 @@ curl -I http://127.0.0.1/api   # API (via Nginx)
 ## 📝 Checklist Fix
 
 ### Untuk Landing Page Login Redirect:
+
 - [ ] File `app/beranda/app/page.js` sudah di-update (✅ Done)
 - [ ] `.env.production` di VPS sudah ada `NEXT_PUBLIC_APP_URL=http://app.quickkasir.com`
 - [ ] Rebuild landing page: `npm run build`
 - [ ] Restart PM2: `pm2 restart quickkasir-landing`
 
 ### Untuk admin.quickkasir.com Error 500:
+
 - [ ] Cek Nginx error log
 - [ ] Cek Laravel log
 - [ ] Cek PHP-FPM status
@@ -244,6 +263,7 @@ curl -I http://127.0.0.1/api   # API (via Nginx)
 - [ ] Test PHP-FPM socket
 
 ### Untuk app.quickkasir.com Loading:
+
 - [ ] Cek PM2 status (harus running)
 - [ ] Cek port 3000 (harus listening)
 - [ ] Cek Nginx proxy config
@@ -259,6 +279,7 @@ curl -I http://127.0.0.1/api   # API (via Nginx)
 # 1. Fix Landing Page (rebuild dengan env baru)
 cd /var/www/quickkasir/app/beranda
 echo "NEXT_PUBLIC_APP_URL=http://app.quickkasir.com" >> .env.production
+# Build langsung (tidak perlu hapus .next, Next.js akan overwrite)
 npm run build
 pm2 restart quickkasir-landing
 

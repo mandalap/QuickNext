@@ -600,9 +600,9 @@ const ProductManagementOptimized = () => {
 
       // Refetch the current categories query immediately to get fresh data
       if (currentBusiness?.id) {
-        await queryClient.refetchQueries({
+      await queryClient.refetchQueries({
           queryKey: queryKeys.categories.list(currentBusiness.id),
-        });
+      });
       }
 
       // Also invalidate products queries to update category counts in product lists
