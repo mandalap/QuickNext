@@ -34,6 +34,15 @@ class AdminPanelProvider extends PanelProvider
             ->colors([
                 'primary' => Color::Amber,
             ])
+            // ✅ Add QuickKasir favicon for browser tab
+            ->favicon(asset('logo-qk.png'))
+            // ✅ Add QuickKasir brand logo in sidebar
+            ->brandLogo(asset('logo-qk.png'))
+            ->brandLogoHeight('2.5rem')
+            // ✅ Add brand name (optional, will show if logo fails to load)
+            ->brandName('QuickKasir Admin')
+            // ✅ Optional: Add dark mode logo (if different)
+            // ->darkModeBrandLogo(asset('logo-qk-dark.png'))
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->pages([

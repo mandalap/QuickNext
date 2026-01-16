@@ -190,9 +190,12 @@ class SubscriptionController extends Controller
                 'notes' => $isTrial ? 'Trial subscription - 7 days' : null,
             ]);
 
+            // ✅ FIX: Determine if payment is required (always true for paid subscriptions)
+            $requiresPayment = !$isTrial && $price->final_price > 0;
+
             // If paid subscription, create Midtrans payment token
             $snapToken = null;
-            if (!$isTrial && $price->final_price > 0) {
+            if ($requiresPayment) {
                 try {
                     $snapToken = $this->midtransService->createSnapToken([
                         'order_id' => $subscriptionCode,
@@ -208,13 +211,14 @@ class SubscriptionController extends Controller
                     Log::info('Snap token created for subscription', [
                         'subscription_id' => $subscription->id,
                         'subscription_code' => $subscriptionCode,
+                        'requires_payment' => $requiresPayment,
                     ]);
                 } catch (\Exception $e) {
                     Log::error('Failed to create Midtrans snap token', [
                         'subscription_id' => $subscription->id,
                         'error' => $e->getMessage(),
                     ]);
-                    // Continue without snap token for now
+                    // Continue without snap token - user will be redirected to payment page
                 }
             }
 
@@ -223,11 +227,13 @@ class SubscriptionController extends Controller
             // Fire SubscriptionCreated event
             event(new \App\Events\SubscriptionCreated($subscription));
 
+            // ✅ FIX: Always return requires_payment explicitly for paid subscriptions
             return response()->json([
                 'success' => true,
                 'message' => $isTrial ? 'Trial subscription activated successfully' : 'Subscription created. Please proceed with payment.',
                 'data' => $subscription->load(['subscriptionPlan', 'subscriptionPlanPrice']),
-                'requires_payment' => !$isTrial,
+                'requires_payment' => $requiresPayment, // ✅ FIX: Explicitly set to true for paid subscriptions
+                'is_trial' => $isTrial, // ✅ FIX: Add is_trial flag for clarity
                 'snap_token' => $snapToken,
                 'client_key' => config('midtrans.client_key'),
             ], 201);
@@ -672,7 +678,7 @@ class SubscriptionController extends Controller
             $request->validate([
                 'subscription_plan_id' => 'required|exists:subscription_plans,id',
                 'subscription_plan_price_id' => 'required|exists:subscription_plan_prices,id',
-                'upgrade_option' => 'nullable|in:prorated,full,discount', // ✅ NEW: Allow user to choose upgrade option
+                'upgrade_option' => 'nullable|in:daily_value,bonus_days,discount', // ✅ NEW: Allow user to choose upgrade option
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             Log::error('Validation failed in upgrade', [
@@ -775,8 +781,8 @@ class SubscriptionController extends Controller
             // Calculate upgrade options
             $upgradeOptions = $this->calculateUpgradeOptions($currentSubscription, $newPrice);
 
-            // ✅ FIX: Use selected upgrade option (default to prorated)
-            $selectedOptionType = $request->input('upgrade_option', 'prorated');
+            // ✅ FIX: Use selected upgrade option (default to bonus_days - REKOMENDASI TERBAIK)
+            $selectedOptionType = $request->input('upgrade_option', 'bonus_days');
             $selectedOption = $upgradeOptions[$selectedOptionType];
 
             $startsAt = Carbon::now();
@@ -1484,128 +1490,161 @@ class SubscriptionController extends Controller
         $totalDays = $currentStartsAt->diffInDays($currentEndsAt);
         $usedDays = $totalDays - $remainingDays;
 
-        // ✅ NEW: Calculate DAILY VALUE (harga per hari)
+        // Calculate DAILY VALUE (harga per hari)
         $currentDailyPrice = $totalDays > 0 ? ($currentAmountPaid / $totalDays) : 0;
         $newDailyPrice = $newPrice->duration_months > 0 ? ($newPrice->final_price / ($newPrice->duration_months * 30)) : 0;
 
-        // ✅ NEW: Calculate remaining value (sisa nilai uang dari paket lama)
+        // Calculate remaining value (sisa nilai uang dari paket lama)
         $remainingValue = $remainingDays * $currentDailyPrice;
 
         // Round for display
         $remainingDaysRounded = round($remainingDays, 1);
         $remainingValueRounded = round($remainingValue, 2);
-
-        // ================== OPTION 1: PRORATED (DAILY VALUE METHOD) ==================
-        // Konsep: Sisa nilai paket lama + Harga paket baru = Total nilai
-        // Total nilai / Harga harian baru = Total hari aktif
-
-        $proratedTotalValue = $remainingValue + $newPrice->final_price;
-        $proratedTotalDays = $newDailyPrice > 0 ? ($proratedTotalValue / $newDailyPrice) : 0;
-
-        // User bayar harga paket baru (karena sisa nilai sudah dihitung ke total hari)
-        $proratedAmount = $newPrice->final_price;
-        $proratedEndsAt = $now->copy()->addDays((int) floor($proratedTotalDays));
-
-        // Bonus days adalah selisih dari duration standar
         $standardDays = $newPrice->duration_months * 30;
-        $proratedBonusDays = max(0, (int) floor($proratedTotalDays - $standardDays));
 
-        // ================== OPTION 2: FULL PAYMENT (BONUS DAYS) ==================
-        // Konsep: Bayar full harga baru, dapat bonus hari dari sisa paket lama
+        // ================== OPSI 1: DAILY VALUE (PRO-RATA PENUH) ==================
+        // Konversi 100% sisa nilai Basic ke Professional
+        // Rumus: Sisa Hari × Harga Basic/hari ÷ Harga Pro/hari
+        // Paling fair tapi paling berisiko untuk margin
 
-        $fullAmount = $newPrice->final_price;
-        $fullEndsAt = $now->copy()->addMonths($newPrice->duration_months);
-        if ($remainingDays > 0) {
-            $fullEndsAt->addDays($remainingDays); // Bonus hari langsung dari sisa hari paket lama
+        $dailyValueConvertedDays = 0;
+        if ($newDailyPrice > 0) {
+            // Konversi 100% sisa nilai ke hari baru
+            $dailyValueConvertedDays = $remainingValue / $newDailyPrice;
         }
-        $fullBonusDays = (int) $remainingDays;
 
-        // ================== OPTION 3: DISCOUNT (10% OFF) ==================
-        // Konsep: Diskon 10% dari harga baru, durasi standar
+        $dailyValueTotalDays = $standardDays + $dailyValueConvertedDays;
+        $dailyValueAmount = $newPrice->final_price; // Bayar harga paket baru
+        $dailyValueEndsAt = $now->copy()->addDays((int) floor($dailyValueTotalDays));
+        $dailyValueBonusDays = max(0, (int) floor($dailyValueConvertedDays));
 
-        $discountPercentage = 10;
+        // ================== OPSI 2: BONUS DAYS DENGAN CAP (REKOMENDASI TERBAIK) ==================
+        // Bayar full + bonus hari terbatas (max 60 hari)
+        // Konversi hanya 30-50% dari sisa nilai Basic
+        // Sangat aman untuk margin, tapi user tetap dapat benefit
+        // Solusi untuk kasus: 100 user tidak bisa exploit jadi 13 bulan
+
+        $bonusDaysConversionRate = 0.40; // 40% konversi (bisa diatur 30-50%)
+        $maxBonusDays = 60; // Cap maksimal bonus hari
+
+        // Hitung bonus hari dari konversi 40% sisa nilai
+        $bonusDaysFromValue = 0;
+        if ($newDailyPrice > 0) {
+            $convertedValue = $remainingValue * $bonusDaysConversionRate;
+            $bonusDaysFromValue = min($maxBonusDays, (int) floor($convertedValue / $newDailyPrice));
+        }
+
+        // Jika sisa hari lebih kecil dari bonus days yang dihitung, gunakan sisa hari
+        $bonusDaysFinal = min($maxBonusDays, max(0, min((int) $remainingDays, $bonusDaysFromValue)));
+
+        $bonusDaysAmount = $newPrice->final_price; // Bayar full
+        $bonusDaysTotalDays = $standardDays + $bonusDaysFinal;
+        $bonusDaysEndsAt = $now->copy()->addDays($bonusDaysTotalDays);
+        $bonusDaysCreditUsed = $bonusDaysFinal * $newDailyPrice; // Nilai yang dikonversi
+
+        // ================== OPSI 3: DISKON PAKET BARU ==================
+        // Diskon langsung harga (5-15%)
+        // Paling sederhana, durasi standar 30 hari
+        // Cocok untuk flash sale atau user pemula
+
+        // Diskon dinamis berdasarkan durasi paket (semakin lama, semakin besar diskon)
+        $discountPercentage = 0;
+        if ($newPrice->duration_months == 1) {
+            $discountPercentage = 5; // 5% untuk 1 bulan
+        } elseif ($newPrice->duration_months == 3) {
+            $discountPercentage = 8; // 8% untuk 3 bulan
+        } elseif ($newPrice->duration_months == 6) {
+            $discountPercentage = 12; // 12% untuk 6 bulan
+        } else {
+            $discountPercentage = 15; // 15% untuk 12 bulan
+        }
+
         $discountAmount = $newPrice->final_price * ($discountPercentage / 100);
         $discountedAmount = $newPrice->final_price - $discountAmount;
-        $discountEndsAt = $now->copy()->addMonths($newPrice->duration_months);
+        $discountEndsAt = $now->copy()->addDays($standardDays);
 
-        // ✅ NEW: Determine which option is recommended based on BEST VALUE
-        // Compare effective daily price for each option
-        $proratedEffectiveDailyPrice = $proratedAmount / $proratedTotalDays;
-        $fullEffectiveDailyPrice = $fullAmount / ($standardDays + $fullBonusDays);
-        $discountEffectiveDailyPrice = $discountedAmount / $standardDays;
+        // Determine which option is recommended (Opsi 2 - Bonus Days dengan Cap adalah REKOMENDASI TERBAIK)
+        $dailyValueEffectiveDailyPrice = $dailyValueTotalDays > 0 ? ($dailyValueAmount / $dailyValueTotalDays) : 0;
+        $bonusDaysEffectiveDailyPrice = $bonusDaysTotalDays > 0 ? ($bonusDaysAmount / $bonusDaysTotalDays) : 0;
+        $discountEffectiveDailyPrice = $standardDays > 0 ? ($discountedAmount / $standardDays) : 0;
 
-        // Recommended = yang punya effective daily price paling rendah
-        $minDailyPrice = min($proratedEffectiveDailyPrice, $fullEffectiveDailyPrice, $discountEffectiveDailyPrice);
-
-        $proratedRecommended = ($proratedEffectiveDailyPrice <= $minDailyPrice + 0.01); // Tolerance untuk pembulatan
-        $fullRecommended = ($fullEffectiveDailyPrice <= $minDailyPrice + 0.01) && !$proratedRecommended;
-        $discountRecommended = ($discountEffectiveDailyPrice <= $minDailyPrice + 0.01) && !$proratedRecommended && !$fullRecommended;
+        // Opsi 2 (Bonus Days) selalu direkomendasikan karena aman untuk margin
+        $bonusDaysRecommended = true;
+        $dailyValueRecommended = false;
+        $discountRecommended = false;
 
         return [
-            'prorated' => [
-                'type' => 'prorated',
-                'label' => 'Upgrade dengan Daily Value (Direkomendasikan)',
-                'description' => "Sisa nilai paket lama (Rp " . number_format($remainingValueRounded, 0, ',', '.') . ") digabungkan dengan paket baru untuk perpanjang durasi",
-                'amount_to_pay' => round($proratedAmount, 2),
+            'daily_value' => [
+                'type' => 'daily_value',
+                'label' => 'Opsi 1: Daily Value (Pro-rata Penuh)',
+                'description' => "Konversi 100% sisa nilai paket lama ke paket baru. Paling fair tapi berisiko untuk margin.",
+                'amount_to_pay' => round($dailyValueAmount, 2),
                 'credit_amount' => round($remainingValue, 2),
-                'ends_at' => $proratedEndsAt,
-                'total_days' => (int) floor($proratedTotalDays),
-                'bonus_days' => $proratedBonusDays,
-                'savings' => 0, // Tidak ada diskon, tapi dapat hari tambahan
-                'effective_daily_price' => round($proratedEffectiveDailyPrice, 2),
-                'is_recommended' => $proratedRecommended,
-                'recommendation_reason' => $proratedRecommended
-                    ? "Paling hemat! Dapat " . $proratedBonusDays . " hari bonus dari sisa paket lama (senilai Rp " . number_format($remainingValueRounded, 0, ',', '.') . ")"
-                    : null,
+                'credit_percentage' => 100, // 100% konversi
+                'ends_at' => $dailyValueEndsAt,
+                'total_days' => (int) floor($dailyValueTotalDays),
+                'bonus_days' => $dailyValueBonusDays,
+                'savings' => 0,
+                'effective_daily_price' => round($dailyValueEffectiveDailyPrice, 2),
+                'is_recommended' => $dailyValueRecommended,
+                'recommendation_reason' => null,
                 'calculation_details' => [
                     'current_daily_price' => round($currentDailyPrice, 2),
                     'new_daily_price' => round($newDailyPrice, 2),
+                    'remaining_days' => $remainingDaysRounded,
                     'remaining_value' => round($remainingValue, 2),
-                    'total_value' => round($proratedTotalValue, 2),
-                    'formula' => "({$remainingDaysRounded} hari × Rp " . number_format($currentDailyPrice, 0) . ") + Rp " . number_format($newPrice->final_price, 0) . " = " . (int) floor($proratedTotalDays) . " hari",
+                    'converted_days' => round($dailyValueConvertedDays, 1),
+                    'formula' => "({$remainingDaysRounded} hari × Rp " . number_format($currentDailyPrice, 0) . "/hari) ÷ Rp " . number_format($newDailyPrice, 0) . "/hari = " . round($dailyValueConvertedDays, 1) . " hari",
+                    'formula_explanation' => "Sisa Hari × Harga Basic/hari ÷ Harga Pro/hari",
                 ],
             ],
-            'full' => [
-                'type' => 'full',
-                'label' => 'Upgrade Full + Bonus Days',
-                'description' => 'Bayar harga penuh, dapatkan bonus ' . $remainingDays . ' hari dari paket lama',
-                'amount_to_pay' => $fullAmount,
-                'credit_amount' => 0,
-                'ends_at' => $fullEndsAt,
-                'total_days' => $standardDays + $fullBonusDays,
-                'bonus_days' => $fullBonusDays,
+            'bonus_days' => [
+                'type' => 'bonus_days',
+                'label' => 'Opsi 2: Bonus Days dengan Cap (REKOMENDASI TERBAIK)',
+                'description' => "Bayar full + bonus hari terbatas (max {$maxBonusDays} hari). Konversi " . ($bonusDaysConversionRate * 100) . "% dari sisa nilai. Aman untuk margin.",
+                'amount_to_pay' => round($bonusDaysAmount, 2),
+                'credit_amount' => round($bonusDaysCreditUsed, 2),
+                'credit_percentage' => round($bonusDaysConversionRate * 100, 0), // 40% konversi
+                'ends_at' => $bonusDaysEndsAt,
+                'total_days' => $bonusDaysTotalDays,
+                'bonus_days' => $bonusDaysFinal,
+                'max_bonus_days' => $maxBonusDays,
                 'savings' => 0,
-                'effective_daily_price' => round($fullEffectiveDailyPrice, 2),
-                'is_recommended' => $fullRecommended,
-                'recommendation_reason' => $fullRecommended
-                    ? "Dapat " . $fullBonusDays . " hari bonus tambahan"
-                    : null,
+                'effective_daily_price' => round($bonusDaysEffectiveDailyPrice, 2),
+                'is_recommended' => $bonusDaysRecommended,
+                'recommendation_reason' => "Paling aman untuk margin! Dapat {$bonusDaysFinal} hari bonus (max {$maxBonusDays} hari) dari konversi " . ($bonusDaysConversionRate * 100) . "% sisa nilai.",
                 'calculation_details' => [
-                    'standard_days' => $standardDays,
-                    'bonus_from_old_plan' => $fullBonusDays,
-                    'formula' => $standardDays . " hari + " . $fullBonusDays . " hari bonus = " . ($standardDays + $fullBonusDays) . " hari total",
+                    'remaining_value' => round($remainingValue, 2),
+                    'conversion_rate' => $bonusDaysConversionRate * 100,
+                    'converted_value' => round($remainingValue * $bonusDaysConversionRate, 2),
+                    'bonus_days_calculated' => $bonusDaysFromValue,
+                    'bonus_days_final' => $bonusDaysFinal,
+                    'max_cap' => $maxBonusDays,
+                    'formula' => "Rp " . number_format($remainingValue, 0) . " × " . ($bonusDaysConversionRate * 100) . "% = Rp " . number_format($bonusDaysCreditUsed, 0) . " → " . $bonusDaysFinal . " hari bonus (max {$maxBonusDays} hari)",
+                    'formula_explanation' => "Konversi " . ($bonusDaysConversionRate * 100) . "% dari sisa nilai dengan cap maksimal {$maxBonusDays} hari",
                 ],
             ],
             'discount' => [
                 'type' => 'discount',
-                'label' => 'Upgrade dengan Diskon ' . $discountPercentage . '%',
-                'description' => 'Diskon khusus ' . $discountPercentage . '% untuk loyal customer',
+                'label' => 'Opsi 3: Diskon Paket Baru',
+                'description' => "Diskon langsung " . $discountPercentage . "% dari harga paket baru. Paling sederhana, durasi standar.",
                 'amount_to_pay' => round($discountedAmount, 2),
                 'credit_amount' => 0,
+                'credit_percentage' => 0,
                 'ends_at' => $discountEndsAt,
                 'total_days' => $standardDays,
                 'bonus_days' => 0,
                 'savings' => round($discountAmount, 2),
                 'effective_daily_price' => round($discountEffectiveDailyPrice, 2),
                 'is_recommended' => $discountRecommended,
-                'recommendation_reason' => $discountRecommended
-                    ? "Hemat Rp " . number_format($discountAmount, 0, ',', '.') . " dengan diskon"
-                    : null,
+                'recommendation_reason' => null,
                 'calculation_details' => [
                     'original_price' => $newPrice->final_price,
                     'discount_percentage' => $discountPercentage,
                     'discount_amount' => round($discountAmount, 2),
-                    'formula' => "Rp " . number_format($newPrice->final_price, 0) . " - " . $discountPercentage . "% = Rp " . number_format($discountedAmount, 0),
+                    'standard_days' => $standardDays,
+                    'formula' => "Rp " . number_format($newPrice->final_price, 0) . " - " . $discountPercentage . "% = Rp " . number_format($discountedAmount, 0) . " untuk {$standardDays} hari",
+                    'formula_explanation' => "Diskon langsung " . $discountPercentage . "% dari harga paket baru",
                 ],
             ],
             'summary' => [

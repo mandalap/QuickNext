@@ -12,11 +12,19 @@ const UpgradeOptionsModal = ({
   planName,
   loading = false,
 }) => {
-  const [selectedOption, setSelectedOption] = useState('prorated');
+  const [selectedOption, setSelectedOption] = useState('bonus_days');
+  const [showFormula, setShowFormula] = useState({});
 
   useEffect(() => {
-    if (upgradeOptions && upgradeOptions.prorated) {
-      setSelectedOption('prorated');
+    if (upgradeOptions) {
+      // Default ke bonus_days (REKOMENDASI TERBAIK)
+      if (upgradeOptions.bonus_days) {
+        setSelectedOption('bonus_days');
+      } else if (upgradeOptions.daily_value) {
+        setSelectedOption('daily_value');
+      } else if (upgradeOptions.discount) {
+        setSelectedOption('discount');
+      }
     }
   }, [upgradeOptions]);
 
@@ -40,9 +48,9 @@ const UpgradeOptionsModal = ({
 
   const getOptionIcon = type => {
     switch (type) {
-      case 'prorated':
+      case 'daily_value':
         return <Clock className='w-5 h-5 text-blue-500' />;
-      case 'full':
+      case 'bonus_days':
         return <Zap className='w-5 h-5 text-green-500' />;
       case 'discount':
         return <Star className='w-5 h-5 text-yellow-500' />;
@@ -53,7 +61,11 @@ const UpgradeOptionsModal = ({
 
   const getOptionBadge = option => {
     if (option.is_recommended) {
-      return <Badge className='bg-blue-100 text-blue-800'>Rekomendasi</Badge>;
+      return (
+        <Badge className='bg-green-600 text-white font-semibold'>
+          ⭐ REKOMENDASI TERBAIK
+        </Badge>
+      );
     }
     if (option.savings > 0) {
       return (
@@ -63,6 +75,13 @@ const UpgradeOptionsModal = ({
       );
     }
     return null;
+  };
+
+  const toggleFormula = key => {
+    setShowFormula(prev => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
   };
 
   return (
@@ -141,20 +160,97 @@ const UpgradeOptionsModal = ({
                       {formatPrice(option.amount_to_pay)}
                     </div>
                     {option.credit_amount > 0 && (
-                      <div className='text-sm text-green-600'>
-                        Credit: {formatPrice(option.credit_amount)}
+                      <div className='text-sm text-green-600 mt-1'>
+                        <div>Credit: {formatPrice(option.credit_amount)}</div>
+                        {option.credit_percentage > 0 && (
+                          <div className='text-xs text-gray-500'>
+                            ({option.credit_percentage}% dari sisa nilai)
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
 
-                  <div className='text-sm text-gray-600'>
-                    <p>Berlaku hingga:</p>
-                    <p className='font-medium'>{formatDate(option.ends_at)}</p>
+                  <div className='text-sm text-gray-600 space-y-1'>
+                    <div>
+                      <span className='font-medium'>Total Hari:</span>{' '}
+                      <span className='text-blue-600 font-semibold'>
+                        {option.total_days} hari
+                      </span>
+                    </div>
+                    {option.bonus_days > 0 && (
+                      <div className='text-green-600'>
+                        <span className='font-medium'>Bonus:</span>{' '}
+                        {option.bonus_days} hari
+                        {option.max_bonus_days && (
+                          <span className='text-xs text-gray-500'>
+                            {' '}
+                            (max {option.max_bonus_days} hari)
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    <div>
+                      <span className='font-medium'>Berlaku hingga:</span>
+                      <p className='font-semibold'>{formatDate(option.ends_at)}</p>
+                    </div>
                   </div>
 
                   {option.savings > 0 && (
                     <div className='bg-green-100 text-green-800 text-sm p-2 rounded'>
                       <strong>Hemat {formatPrice(option.savings)}</strong>
+                    </div>
+                  )}
+
+                  {option.recommendation_reason && (
+                    <div className='bg-blue-50 border border-blue-200 text-blue-800 text-xs p-2 rounded'>
+                      {option.recommendation_reason}
+                    </div>
+                  )}
+
+                  {/* Formula Details */}
+                  {option.calculation_details && (
+                    <div className='border-t pt-3 mt-3'>
+                      <button
+                        onClick={e => {
+                          e.stopPropagation();
+                          toggleFormula(key);
+                        }}
+                        className='text-xs text-blue-600 hover:text-blue-800 font-medium w-full text-left'
+                      >
+                        {showFormula[key] ? '▼' : '▶'} Lihat Rumus Perhitungan
+                      </button>
+                      {showFormula[key] && (
+                        <div className='mt-2 bg-gray-50 p-3 rounded text-xs space-y-1'>
+                          <div className='font-semibold text-gray-700 mb-2'>
+                            Rumus:
+                          </div>
+                          <div className='text-gray-600 font-mono bg-white p-2 rounded border'>
+                            {option.calculation_details.formula}
+                          </div>
+                          {option.calculation_details.formula_explanation && (
+                            <div className='text-gray-500 italic mt-1'>
+                              {option.calculation_details.formula_explanation}
+                            </div>
+                          )}
+                          {option.calculation_details.current_daily_price && (
+                            <div className='mt-2 space-y-1'>
+                              <div>
+                                Harga Basic/hari:{' '}
+                                {formatPrice(
+                                  option.calculation_details.current_daily_price
+                                )}
+                              </div>
+                              <div>
+                                Harga Pro/hari:{' '}
+                                {formatPrice(
+                                  option.calculation_details.new_daily_price
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

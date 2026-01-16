@@ -525,22 +525,40 @@ const SubscriptionPlans = () => {
               );
             });
 
-            // If it's a trial, go directly to business creation
-            if (plan.slug === 'trial-7-days' || !response.data.requires_payment) {
+            // ✅ FIX: Check if it's a trial (free) or paid subscription
+            const isTrial = plan.slug === 'trial-7-days' || response.data.data?.is_trial || response.data.data?.subscription_plan_price?.final_price === 0;
+            const requiresPayment = response.data.requires_payment !== false && !isTrial;
+            const hasPrice = response.data.data?.subscription_plan_price?.final_price > 0;
+
+            // If it's a trial (free), go directly to business creation
+            if (isTrial && !hasPrice) {
+              toast.success('Trial subscription diaktifkan!');
               navigate('/business-setup', { replace: true });
-            } else if (response.data.snap_token) {
-              // If payment required and snap_token exists, open Midtrans payment
-              handleMidtransPayment(
-                response.data.snap_token,
-                response.data.client_key,
-                response.data.data
-              );
+            } else if (requiresPayment || hasPrice) {
+              // ✅ FIX: For paid subscriptions, ALWAYS require payment
+              if (response.data.snap_token) {
+                // If payment required and snap_token exists, open Midtrans payment
+                toast.success('Subscription dibuat! Silakan selesaikan pembayaran.');
+                handleMidtransPayment(
+                  response.data.snap_token,
+                  response.data.client_key,
+                  response.data.data
+                );
+              } else {
+                // Fallback: redirect to payment pending page
+                toast.success('Subscription dibuat! Silakan selesaikan pembayaran.');
+                navigate('/payment/pending', {
+                  state: { 
+                    subscription: response.data.data,
+                    redirectAfterPayment: true,
+                  },
+                  replace: true,
+                });
+              }
             } else {
-              // Fallback: redirect to payment page
-              navigate('/payment', {
-                state: { subscription: response.data.data },
-                replace: true,
-              });
+              // This should not happen, but handle gracefully
+              console.error('Unexpected subscription state:', response.data);
+              toast.error('Terjadi kesalahan. Silakan hubungi support.');
             }
           }
           return;
@@ -568,22 +586,40 @@ const SubscriptionPlans = () => {
           );
         });
 
-        // If it's a trial, go directly to business creation
-        if (plan.slug === 'trial-7-days' || !response.data.requires_payment) {
+        // ✅ FIX: Check if it's a trial (free) or paid subscription
+        const isTrial = plan.slug === 'trial-7-days' || response.data.data?.is_trial || response.data.data?.subscription_plan_price?.final_price === 0;
+        const requiresPayment = response.data.requires_payment !== false && !isTrial;
+        const hasPrice = response.data.data?.subscription_plan_price?.final_price > 0;
+
+        // If it's a trial (free), go directly to business creation
+        if (isTrial && !hasPrice) {
+          toast.success('Trial subscription diaktifkan!');
           navigate('/business-setup', { replace: true });
-        } else if (response.data.snap_token) {
-          // If payment required and snap_token exists, open Midtrans payment
-          handleMidtransPayment(
-            response.data.snap_token,
-            response.data.client_key,
-            response.data.data
-          );
+        } else if (requiresPayment || hasPrice) {
+          // ✅ FIX: For paid subscriptions, ALWAYS require payment
+          if (response.data.snap_token) {
+            // If payment required and snap_token exists, open Midtrans payment
+            toast.success('Subscription dibuat! Silakan selesaikan pembayaran.');
+            handleMidtransPayment(
+              response.data.snap_token,
+              response.data.client_key,
+              response.data.data
+            );
+          } else {
+            // Fallback: redirect to payment pending page
+            toast.success('Subscription dibuat! Silakan selesaikan pembayaran.');
+            navigate('/payment/pending', {
+              state: { 
+                subscription: response.data.data,
+                redirectAfterPayment: true,
+              },
+              replace: true,
+            });
+          }
         } else {
-          // Fallback: redirect to payment page
-          navigate('/payment', {
-            state: { subscription: response.data.data },
-            replace: true,
-          });
+          // This should not happen, but handle gracefully
+          console.error('Unexpected subscription state:', response.data);
+          toast.error('Terjadi kesalahan. Silakan hubungi support.');
         }
       }
     } catch (err) {
