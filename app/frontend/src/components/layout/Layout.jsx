@@ -115,20 +115,35 @@ const Layout = () => {
     // Check if PWA is already installed
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
     const isIOSStandalone = window.navigator.standalone === true;
-    setIsPWAInstalled(isStandalone || isIOSStandalone);
+    const isInstalled = isStandalone || isIOSStandalone;
+    setIsPWAInstalled(isInstalled);
+
+    if (isInstalled) {
+      console.log('✅ PWA already installed');
+      return;
+    }
 
     // Listen for beforeinstallprompt event
     const handleBeforeInstallPrompt = (e) => {
+      console.log('✅ beforeinstallprompt event received');
       // Prevent the mini-infobar from appearing on mobile
       e.preventDefault();
       // Save the event so it can be triggered later
       setDeferredPrompt(e);
+      console.log('✅ Deferred prompt saved');
     };
+
+    // Check if event is already available (for debugging)
+    if (window.deferredPrompt) {
+      console.log('✅ Using existing deferredPrompt');
+      setDeferredPrompt(window.deferredPrompt);
+    }
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
     // Listen for app installed event
     const handleAppInstalled = () => {
+      console.log('✅ PWA was installed');
       setIsPWAInstalled(true);
       setDeferredPrompt(null);
       toast.success('Aplikasi berhasil diinstall!');
@@ -136,7 +151,36 @@ const Layout = () => {
 
     window.addEventListener('appinstalled', handleAppInstalled);
 
+    // ✅ FIX: Check periodically if PWA can be installed (for debugging)
+    const checkPWAInstallability = () => {
+      // Check if manifest.json exists
+      fetch('/manifest.json')
+        .then(res => {
+          if (res.ok) {
+            console.log('✅ manifest.json found');
+          } else {
+            console.warn('⚠️ manifest.json not found');
+          }
+        })
+        .catch(err => console.warn('⚠️ Error checking manifest.json:', err));
+
+      // Check if service worker is registered
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(registrations => {
+          if (registrations.length > 0) {
+            console.log('✅ Service worker registered');
+          } else {
+            console.warn('⚠️ Service worker not registered');
+          }
+        });
+      }
+    };
+
+    // Check after a delay to allow page to fully load
+    const timeoutId = setTimeout(checkPWAInstallability, 2000);
+
     return () => {
+      clearTimeout(timeoutId);
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', handleAppInstalled);
     };
@@ -1326,18 +1370,26 @@ const Layout = () => {
                     </DropdownMenuItem>
                   )}
                   
-                  {/* PWA Install Button - Only show if not installed and prompt is available */}
-                  {!isPWAInstalled && deferredPrompt && (
+                  {/* PWA Install Button - Show if not installed */}
+                  {!isPWAInstalled && (
                     <>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         onClick={handleInstallPWA}
                         data-testid='install-pwa-menu'
-                        className='text-green-600 focus:text-green-700'
+                        className={`${deferredPrompt ? 'text-green-600 focus:text-green-700' : 'text-gray-500'}`}
+                        disabled={!deferredPrompt}
                       >
                         <Smartphone className='w-4 h-4 mr-2' />
-                        <span>Install Aplikasi</span>
+                        <span>
+                          {deferredPrompt ? 'Install Aplikasi' : 'Install Aplikasi (Tidak Tersedia)'}
+                        </span>
                       </DropdownMenuItem>
+                      {!deferredPrompt && (
+                        <div className='px-2 py-1 text-xs text-gray-500'>
+                          Pastikan menggunakan HTTPS dan manifest.json valid
+                        </div>
+                      )}
                     </>
                   )}
                   
