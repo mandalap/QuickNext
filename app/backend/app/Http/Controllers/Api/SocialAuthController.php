@@ -26,6 +26,15 @@ class SocialAuthController extends Controller
     public function handleGoogleCallback()
     {
         try {
+            // Check if code parameter exists
+            if (!request()->has('code')) {
+                Log::warning('Google OAuth callback called without code parameter', [
+                    'query_params' => request()->all(),
+                    'referer' => request()->header('referer')
+                ]);
+                throw new \Exception('OAuth authorization code not provided. Please try logging in again.');
+            }
+
             $googleUser = Socialite::driver('google')->stateless()->user();
 
             $user = User::where('google_id', $googleUser->getId())
