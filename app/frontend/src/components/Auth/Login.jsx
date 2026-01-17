@@ -114,55 +114,32 @@ const Login = () => {
           return;
         }
 
-        // Untuk owner, super_admin - cek status subscription
-        if (['owner', 'super_admin'].includes(userRole)) {
-          // ✅ FIX: Check subscription status from login result
-          // hasActiveSubscription is set by AuthContext.login() and returned in result
-          const hasActiveSubscription = result.hasActiveSubscription;
-          console.log(
-            '🔍 Owner login - subscription status:',
-            hasActiveSubscription
-          );
-          console.log('🔍 Owner login - businesses state:', businesses);
-          console.log('🔍 Owner login - businessLoading:', businessLoading);
+	// Untuk owner, super_admin - cek status subscription DAN business
+	if (['owner', 'super_admin'].includes(userRole)) {
+	  const hasActiveSubscription = result.hasActiveSubscription;
+	  const hasBusiness = result.has_business || (businesses && businesses.length > 0);
+	  
+	  console.log('🔍 Owner login - subscription status:', hasActiveSubscription);
+	  console.log('🔍 Owner login - has_business:', hasBusiness);
+	  console.log('🔍 Owner login - businesses state:', businesses);
+	  
+	  // ✅ Priority 1: Business harus ada dulu
+	  if (!hasBusiness) {
+	    redirectPath = '/business-setup';
+	    console.log('🏢 Owner has no business, redirecting to business-setup');
+	  }
+	  // ✅ Priority 2: Jika sudah punya business, cek subscription
+	  else if (!hasActiveSubscription) {
+	    redirectPath = '/subscription-plans';
+	    console.log('💳 Owner has business but no subscription, redirecting to subscription-plans');
+	  }
+	  // ✅ Priority 3: Semua OK, ke dashboard
+	  else {
+	    redirectPath = '/';
+	    console.log('✅ Owner has business and subscription, redirecting to dashboard');
+	  }
+	} else {        
 
-          // ✅ FIX: Check if user has active subscription
-          if (hasActiveSubscription) {
-            // User has active subscription, check if has business
-            console.log(
-              '✅ Owner has active subscription, checking businesses...'
-            );
-            console.log('🔍 Businesses state:', businesses);
-            console.log('🔍 Business loading:', businessLoading);
-
-            // ✅ FIX: Always redirect to dashboard and let ProtectedRoute handle business check
-            // This ensures businesses have time to load before redirect decision
-            // ProtectedRoute will check business loading status and redirect if needed
-            redirectPath = '/';
-            console.log(
-              '✅ Owner has subscription, redirecting to dashboard (ProtectedRoute will handle business check)'
-            );
-
-            // ✅ OPTIMIZATION: Wait a bit for businesses to start loading
-            // But don't block redirect - let ProtectedRoute handle the final check
-            if (businessLoading) {
-              console.log(
-                '⏳ Owner businesses still loading, ProtectedRoute will wait...'
-              );
-            } else {
-              // Businesses finished loading, but let ProtectedRoute make final decision
-              const hasBusiness = businesses && businesses.length > 0;
-              if (hasBusiness) {
-                console.log(
-                  '✅ Owner has businesses, dashboard will show them'
-                );
-              } else {
-                console.log(
-                  '⚠️ No businesses in state, ProtectedRoute will check and redirect if needed'
-                );
-              }
-            }
-          } else {
             // User doesn't have active subscription, redirect to subscription plans
             redirectPath = '/subscription-plans';
             console.log(

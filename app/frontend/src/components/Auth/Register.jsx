@@ -1,13 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import axios from 'axios';
-import {
-  CheckCircle,
-  Eye,
-  EyeOff,
-  Loader2,
-  Phone,
-  XCircle,
-} from 'lucide-react';
+import { CheckCircle, Eye, EyeOff, Loader2, Phone, XCircle } from 'lucide-react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-hot-toast';
@@ -26,12 +19,14 @@ import {
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 
+
 const API_BASE_URL =
   process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
 
 const registerSchema = z
   .object({
     name: z.string().min(1, 'Nama wajib diisi'),
+
     email: z.string().email('Email tidak valid'),
     phone: z
       .string()
@@ -164,7 +159,6 @@ const Register = () => {
       toast.error('Nomor WhatsApp harus diverifikasi terlebih dahulu');
       return;
     }
-
     setError('');
     const result = await registerUser(
       data.name,
@@ -174,18 +168,27 @@ const Register = () => {
       data.password_confirmation,
       true // whatsapp_verified
     );
-
     if (result.success) {
       // ✅ Show message jika email verifikasi dikirim
       if (result.email_verification_sent) {
         toast.success('Email verifikasi telah dikirim');
       }
-
       // Check if user needs to complete profile
       if (result.requires_profile_completion) {
         navigate('/complete-profile');
       } else if (result.requires_subscription) {
-        navigate('/subscription-plans');
+        // ✅ FIX: Cek apakah user sudah punya business
+        if (!result.has_business) {
+          console.log(
+            '🏢 User has no business, redirecting to business setup...'
+          );
+          navigate('/business-setup');
+        } else {
+          console.log(
+            '💳 User has business, redirecting to subscription plans...'
+          );
+          navigate('/subscription-plans');
+        }
       } else {
         navigate('/');
       }
@@ -194,7 +197,6 @@ const Register = () => {
       const errorMsg = result.error || 'Registrasi gagal. Silakan coba lagi.';
       setError(errorMsg);
       toast.error(errorMsg);
-
       // ✅ FIX: Set field-specific errors if available
       if (result.errors) {
         Object.keys(result.errors).forEach(field => {

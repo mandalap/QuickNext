@@ -74,9 +74,27 @@ class AuthController extends Controller
                 'email' => $request->email,
             ]);
         }
-        
-        $user = User::create($userData);
-        
+
+	// Setelah create user, tambahkan ini:
+	try {
+	    $user = User::create($userData);
+	} catch (\Illuminate\Database\QueryException $e) {
+	    // Check if duplicate entry error
+	    if ($e->getCode() == 23000) {
+	        return response()->json([
+	            'success' => false,
+	            'message' => 'Email atau nomor telepon sudah terdaftar.',
+	            'errors' => [
+	                'email' => ['Email ini sudah terdaftar.']
+	            ]
+	        ], 422);
+	    }
+	    throw $e;
+	}
+
+	// Generate token...
+	$token = $user->createToken('auth_token')->plainTextToken;
+
         // ✅ FIX: Log phone format untuk debugging
         Log::info('User created with formatted phone', [
             'user_id' => $user->id,
@@ -130,17 +148,18 @@ class AuthController extends Controller
         );
         
         return response()->json([
-            'user' => $user,
-            'token' => $token, // Keep for backward compatibility (will be removed later)
-            'requires_subscription' => true, // Flag to redirect to subscription page
-            'requires_profile_completion' => !$profileComplete, // Flag jika profil belum lengkap
-            'email_verification_sent' => true,
-            'whatsapp_verified' => true,
-            'profile_complete' => $profileComplete,
-            'message' => $profileComplete 
-                ? 'Registrasi berhasil. Email dan WhatsApp Anda sudah terverifikasi. Silakan pilih paket subscription untuk melanjutkan.'
-                : 'Registrasi berhasil. Silakan lengkapi profil Anda terlebih dahulu sebelum memilih paket subscription.',
-        ], 201)->cookie($cookie);
+	    'user' => $user,
+	    'token' => $token,
+	    'requires_subscription' => true,
+	    'has_business' => false, // ← TAMBAH INI
+	    'requires_profile_completion' => !$profileComplete,
+	    'email_verification_sent' => true,
+	    'whatsapp_verified' => true,
+	    'profile_complete' => $profileComplete,
+	    'message' => $profileComplete
+	        ? 'Registrasi berhasil. Email dan WhatsApp Anda sudah terverifikasi. Silakan buat business terlebih dahulu.'
+	        : 'Registrasi berhasil. Silakan lengkapi profil Anda terlebih dahulu sebelum membuat business.',
+	], 201)->cookie($cookie);
     }
 
     /**
