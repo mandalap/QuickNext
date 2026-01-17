@@ -301,11 +301,13 @@ class BusinessController extends Controller
                         'message' => 'Payment must be completed before business creation',
                     ]);
 
-                    return response()->json([
-                        'error' => 'Anda memiliki subscription yang belum dibayar. Silakan selesaikan pembayaran terlebih dahulu sebelum membuat bisnis.',
-                        'requires_payment' => true,
-                        'subscription_code' => $pendingSubscription->subscription_code,
-                    ], 400);
+			return response()->json([
+			    'error' => 'Anda memiliki subscription yang belum dibayar. Silakan selesaikan pembayaran terlebih dahulu sebelum membuat bisnis.',
+			    'requires_payment' => true,
+			    'redirect_to' => '/subscription-plans',
+			    'subscription_code' => $pendingSubscription->subscription_code,
+			], 400);
+
                 }
 
                 // ✅ No existing subscription, check if user can use trial
@@ -639,3 +641,4 @@ class BusinessController extends Controller
         return $phone;
     }
 }
+// Updated Sat Jan 17 02:48:26 UTC 2026

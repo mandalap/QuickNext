@@ -19,15 +19,17 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => array_filter([
-        env('APP_URL', 'http://localhost:8000'),
-        env('FRONTEND_URL', 'http://localhost:3000'),
-        env('LANDING_URL', 'http://localhost:3001'),
-        'http://localhost:3000',
-        'http://127.0.0.1:3000',
-        'https://app.quickkasir.com',
-        'https://quickkasir.com',
-    ]),
+	'allowed_origins' => array_filter([
+	    env('APP_URL', 'http://admin.quickkasir.com'),
+	    env('FRONTEND_URL', 'http://app.quickkasir.com'),
+	    env('LANDING_URL', 'http://www.quickkasir.com'),
+	    'http://www.quickkasir.com',
+	    'https://www.quickkasir.com',
+	    'http://app.quickkasir.com',
+	    'https://app.quickkasir.com',
+	    'http://admin.quickkasir.com',
+	    'https://admin.quickkasir.com',
+	]),	
 
     // ✅ FIX: Allow localhost with any port for development (PWA testing)
     'allowed_origins_patterns' => [

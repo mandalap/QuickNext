@@ -113,6 +113,7 @@
     "eslint-plugin-react-hooks": "^4.6.2",
     "globals": "15.15.0",
     "postcss": "^8.4.49",
+    "prettier": "^3.8.0",
     "sharp": "^0.34.5",
     "tailwindcss": "^3.4.17",
     "terser-webpack-plugin": "^5.3.14",
