@@ -8,10 +8,11 @@ echo    🚀 KASIR POS SYSTEM - START SERVERS
 echo ========================================
 echo.
 
-REM Set path ke direktori proyek
-set PROJECT_ROOT=E:\development\kasir-pos-system
-set BACKEND_PATH=%PROJECT_ROOT%\app\backend
-set FRONTEND_PATH=%PROJECT_ROOT%\app\frontend
+REM Set path ke direktori proyek (auto-detect)
+set PROJECT_ROOT=%~dp0
+set BACKEND_PATH=%PROJECT_ROOT%app\backend
+set FRONTEND_PATH=%PROJECT_ROOT%app\frontend
+set LANDING_PATH=%PROJECT_ROOT%app\beranda
 
 echo 📁 Project Root: %PROJECT_ROOT%
 echo 📁 Backend Path: %BACKEND_PATH%
@@ -52,11 +53,25 @@ REM Jalankan frontend di window baru
 start "Frontend React" cmd /k "cd /d %FRONTEND_PATH% && npm start"
 
 echo.
+echo ⏳ Menunggu frontend startup...
+timeout /t 5 /nobreak >nul
+
+echo.
+echo 🌐 Memulai Landing Page (Next.js)...
+echo    Command: npm run dev
+echo    URL: http://localhost:3001
+echo.
+
+REM Jalankan landing page di window baru (optional)
+start "Landing Next.js" cmd /k "cd /d %LANDING_PATH% && npm run dev"
+
+echo.
 echo 🎉 Sistem Kasir POS berhasil dimulai!
 echo ========================================
 echo.
 echo 🌐 Backend Laravel: http://localhost:8000
 echo ⚛️ Frontend React: http://localhost:3000
+echo 🌍 Landing Page: http://localhost:3001
 echo 🧪 Test Connection: file:///%PROJECT_ROOT%/test_backend_connection.html
 echo.
 echo 💡 Tips:
