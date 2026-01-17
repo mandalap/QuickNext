@@ -114,37 +114,29 @@ const Login = () => {
           return;
         }
 
-	// Untuk owner, super_admin - cek status subscription DAN business
-	if (['owner', 'super_admin'].includes(userRole)) {
-	  const hasActiveSubscription = result.hasActiveSubscription;
-	  const hasBusiness = result.has_business || (businesses && businesses.length > 0);
-	  
-	  console.log('🔍 Owner login - subscription status:', hasActiveSubscription);
-	  console.log('🔍 Owner login - has_business:', hasBusiness);
-	  console.log('🔍 Owner login - businesses state:', businesses);
-	  
-	  // ✅ Priority 1: Business harus ada dulu
-	  if (!hasBusiness) {
-	    redirectPath = '/business-setup';
-	    console.log('🏢 Owner has no business, redirecting to business-setup');
-	  }
-	  // ✅ Priority 2: Jika sudah punya business, cek subscription
-	  else if (!hasActiveSubscription) {
-	    redirectPath = '/subscription-plans';
-	    console.log('💳 Owner has business but no subscription, redirecting to subscription-plans');
-	  }
-	  // ✅ Priority 3: Semua OK, ke dashboard
-	  else {
-	    redirectPath = '/';
-	    console.log('✅ Owner has business and subscription, redirecting to dashboard');
-	  }
-	} else {        
-
-            // User doesn't have active subscription, redirect to subscription plans
+        // Untuk owner, super_admin - cek status subscription DAN business
+        if (['owner', 'super_admin'].includes(userRole)) {
+          const hasActiveSubscription = result.hasActiveSubscription;
+          const hasBusiness = result.has_business || (businesses && businesses.length > 0);
+          
+          console.log('🔍 Owner login - subscription status:', hasActiveSubscription);
+          console.log('🔍 Owner login - has_business:', hasBusiness);
+          console.log('🔍 Owner login - businesses state:', businesses);
+          
+          // ✅ Priority 1: Business harus ada dulu
+          if (!hasBusiness) {
+            redirectPath = '/business-setup';
+            console.log('🏢 Owner has no business, redirecting to business-setup');
+          }
+          // ✅ Priority 2: Jika sudah punya business, cek subscription
+          else if (!hasActiveSubscription) {
             redirectPath = '/subscription-plans';
-            console.log(
-              '⚠️ Owner has no active subscription, redirecting to subscription-plans'
-            );
+            console.log('💳 Owner has business but no subscription, redirecting to subscription-plans');
+          }
+          // ✅ Priority 3: Semua OK, ke dashboard
+          else {
+            redirectPath = '/';
+            console.log('✅ Owner has business and subscription, redirecting to dashboard');
           }
         } else {
           // Default untuk role lain
