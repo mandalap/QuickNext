@@ -31,6 +31,7 @@ git diff
 ```
 
 **⚠️ PENTING:** Jika ada perubahan lokal yang belum di-commit:
+
 - **Opsi A:** Commit perubahan lokal dulu
 - **Opsi B:** Stash perubahan lokal (simpan sementara)
 - **Opsi C:** Discard perubahan lokal (hapus, hati-hati!)
@@ -40,16 +41,19 @@ git diff
 ### **STEP 4: Pull Perubahan dari GitHub**
 
 #### **Opsi 1: Pull Normal (Recommended)**
+
 ```bash
 git pull origin main
 ```
 
 #### **Opsi 2: Pull dengan Rebase (jika ada conflict)**
+
 ```bash
 git pull --rebase origin main
 ```
 
 #### **Opsi 3: Force Pull (hati-hati, akan overwrite perubahan lokal)**
+
 ```bash
 # Backup dulu jika perlu
 git stash
@@ -146,7 +150,7 @@ git pull origin main
 
 if [ $? -eq 0 ]; then
     echo "✅ Git pull successful!"
-    
+
     # Clear Laravel cache
     echo "🧹 Clearing Laravel cache..."
     cd app/backend
@@ -154,16 +158,16 @@ if [ $? -eq 0 ]; then
     php artisan cache:clear
     php artisan route:clear
     php artisan view:clear
-    
+
     # Rebuild frontend if needed (uncomment if needed)
     # echo "🔨 Rebuilding frontend..."
     # cd ../frontend
     # npm run build
-    
+
     # Restart PM2
     echo "🔄 Restarting PM2 services..."
     pm2 restart all
-    
+
     echo "✅ Update complete!"
 else
     echo "❌ Git pull failed! Check for conflicts."
@@ -172,6 +176,7 @@ fi
 ```
 
 **Cara menggunakan:**
+
 ```bash
 # Buat file
 nano /var/www/quickkasir/pull-updates.sh
