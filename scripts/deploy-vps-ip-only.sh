@@ -29,13 +29,17 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
-# Detect VPS IP
-VPS_IP=$(hostname -I | awk '{print $1}')
+# Detect VPS IP (Public IP)
+# Try to get public IP, fallback to manual setting
+VPS_IP=$(curl -s ifconfig.me || curl -s icanhazip.com || curl -s ipinfo.io/ip || echo "103.172.205.57")
+if [ -z "$VPS_IP" ] || [ "$VPS_IP" = "" ]; then
+    VPS_IP="103.172.205.57"  # Fallback to known public IP
+fi
 echo -e "${BLUE}📋 Configuration:${NC}"
 echo "   Project Directory: $PROJECT_DIR"
 echo "   Repository: $REPO_URL"
 echo "   Branch: $BRANCH"
-echo "   VPS IP: $VPS_IP"
+echo "   VPS Public IP: $VPS_IP"
 echo ""
 
 # Step 1: Update System
