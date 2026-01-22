@@ -1,0 +1,50 @@
+╔════════════════════════════════════════════════════════════════╗
+║                                                                ║
+║        ⚠️  PENTING: JANGAN LUPA SETUP CRON JOB!  ⚠️           ║
+║                                                                ║
+╚════════════════════════════════════════════════════════════════╝
+
+Setelah upload ke hosting, WAJIB setup cron job agar:
+✅ Pengingat subscription otomatis berjalan setiap hari jam 10:00 pagi
+✅ Scheduled tasks berfungsi dengan baik
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📋 CARA SETUP (cPanel / Shared Hosting):
+
+1. Login ke cPanel/Server hosting Anda
+2. Buka menu "Cron Jobs"
+3. Tambahkan cron job berikut:
+
+   * * * * * cd /path/to/project/app/backend && /usr/bin/php artisan schedule:run >> /dev/null 2>&1
+
+   ATAU (Untuk Debugging/Log Error):
+   * * * * * cd /path/to/project/app/backend && /usr/bin/php artisan schedule:run >> /path/to/project/cron_error.log 2>&1
+
+   (Ganti /path/to/project dengan path project Anda di hosting)
+   (Pastikan path '/usr/bin/php' sesuai dengan versi PHP yang dibutuhkan Laravel, misal: /usr/local/bin/ea-php82)
+
+📋 CARA SETUP (VPS / Linux Server via SSH):
+
+1. Login ke VPS via SSH (gunakan user pemilik web/aplikasi).
+2. Jalankan perintah: crontab -e
+3. Tambahkan baris berikut di bagian paling bawah editor:
+
+   * * * * * cd /path/to/project/app/backend && /usr/bin/php artisan schedule:run >> /dev/null 2>&1
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📖 DETAIL LENGKAP:
+
+Lihat file: CRONJOB_SETUP_REMINDER.md
+Atau: DEPLOYMENT_CHECKLIST.md
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🧪 TEST COMMAND:
+
+php artisan subscription:send-reminders
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⚠️  JANGAN LUPA SETUP CRON JOB SETELAH UPLOAD KE HOSTING! ⚠️

@@ -1,0 +1,46 @@
+/**
+ * PM2 Ecosystem Configuration
+ * 
+ * Copy this file to /var/www/quickkasir/ecosystem.config.js on your VPS
+ * 
+ * Usage:
+ *   pm2 start ecosystem.config.js
+ *   pm2 save
+ */
+
+module.exports = {
+  apps: [
+    {
+      name: "quickkasir-frontend",
+      cwd: "/var/www/quickkasir/app/frontend",
+      script: "npm",
+      args: "start",
+      env: {
+        NODE_ENV: "production",
+        PORT: 3000,
+        REACT_APP_BACKEND_URL: "http://api.quickkasir.com",
+        REACT_APP_API_BASE_URL: "http://api.quickkasir.com/api",
+      },
+      error_file: "/var/log/pm2/frontend-error.log",
+      out_file: "/var/log/pm2/frontend-out.log",
+      log_date_format: "YYYY-MM-DD HH:mm:ss Z",
+    },
+    {
+      name: "quickkasir-landing",
+      cwd: "/var/www/quickkasir/app/beranda",
+      // ✅ FIX: Next.js standalone mode harus pakai node .next/standalone/server.js
+      // Bukan "npm start" karena output: standalone tidak support next start
+      script: "node",
+      args: ".next/standalone/server.js",
+      env: {
+        NODE_ENV: "production",
+        PORT: 3001,
+        NEXT_PUBLIC_API_URL: "http://api.quickkasir.com",
+        NEXT_PUBLIC_APP_URL: "http://app.quickkasir.com",
+      },
+      error_file: "/var/log/pm2/landing-error.log",
+      out_file: "/var/log/pm2/landing-out.log",
+      log_date_format: "YYYY-MM-DD HH:mm:ss Z",
+    },
+  ],
+};

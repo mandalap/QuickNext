@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Force Refresh Subscription Data</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f5f5f5;
+      }
+      .container {
+        background: white;
+        padding: 30px;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+      .step {
+        margin: 20px 0;
+        padding: 15px;
+        border-left: 4px solid #007bff;
+        background-color: #f8f9fa;
+      }
+      .step h3 {
+        margin-top: 0;
+        color: #007bff;
+      }
+      button {
+        background-color: #007bff;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 5px;
+        cursor: pointer;
+        margin: 5px;
+      }
+      button:hover {
+        background-color: #0056b3;
+      }
+      .success {
+        color: #28a745;
+        font-weight: bold;
+      }
+      .warning {
+        color: #ffc107;
+        font-weight: bold;
+      }
+      .error {
+        color: #dc3545;
+        font-weight: bold;
+      }
+      .info {
+        color: #17a2b8;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🔄 Force Refresh Subscription Data</h1>
+
+      <div class="step">
+        <h3>Current Status</h3>
+        <p>After upgrade, you should see:</p>
+        <ul>
+          <li><strong>Navbar:</strong> "Basic 31 hari tersisa" (not Trial)</li>
+          <li>
+            <strong>Subscription Settings:</strong> "Basic ACTIVE" with "31 hari
+            tersisa"
+          </li>
+        </ul>
+      </div>
+
+      <div class="step">
+        <h3>Step 1: Clear All Cache</h3>
+        <p>Clear browser cache, localStorage, and sessionStorage.</p>
+        <button onclick="clearAllCache()">Clear All Cache</button>
+        <div id="cacheStatus"></div>
+      </div>
+
+      <div class="step">
+        <h3>Step 2: Test API Endpoints</h3>
+        <p>Test both subscription and business API endpoints.</p>
+        <button onclick="testSubscriptionApi()">Test Subscription API</button>
+        <button onclick="testBusinessApi()">Test Business API</button>
+        <div id="apiStatus"></div>
+      </div>
+
+      <div class="step">
+        <h3>Step 3: Force Refresh Data</h3>
+        <p>Force refresh the application data.</p>
+        <button onclick="forceRefreshData()">Force Refresh Data</button>
+        <div id="refreshStatus"></div>
+      </div>
+
+      <div class="step">
+        <h3>Step 4: Navigate to App</h3>
+        <p>Go to the main application to see updated data.</p>
+        <button onclick="goToApp()">Go to Main App</button>
+        <button onclick="goToSubscriptionSettings()">
+          Go to Subscription Settings
+        </button>
+      </div>
+
+      <div class="step">
+        <h3>Expected Result</h3>
+        <p>After completing all steps, you should see:</p>
+        <ul>
+          <li><strong>Navbar:</strong> "Basic 31 hari tersisa" ✅</li>
+          <li><strong>Subscription Settings:</strong> "Basic ACTIVE" ✅</li>
+          <li><strong>Days Remaining:</strong> "31 hari tersisa" ✅</li>
+        </ul>
+      </div>
+    </div>
+
+    <script>
+      function clearAllCache() {
+        const statusDiv = document.getElementById('cacheStatus');
+        statusDiv.innerHTML =
+          '<span class="warning">🔄 Clearing all cache...</span>';
+
+        try {
+          // Clear localStorage
+          localStorage.clear();
+          console.log('✅ localStorage cleared');
+
+          // Clear sessionStorage
+          sessionStorage.clear();
+          console.log('✅ sessionStorage cleared');
+
+          // Clear cookies (if any)
+          document.cookie.split(';').forEach(function (c) {
+            document.cookie = c
+              .replace(/^ +/, '')
+              .replace(
+                /=.*/,
+                '=;expires=' + new Date().toUTCString() + ';path=/'
+              );
+          });
+          console.log('✅ cookies cleared');
+
+          statusDiv.innerHTML =
+            '<span class="success">✅ All cache cleared successfully!</span>';
+        } catch (error) {
+          statusDiv.innerHTML =
+            '<span class="error">❌ Error clearing cache: ' +
+            error.message +
+            '</span>';
+        }
+      }
+
+      async function testSubscriptionApi() {
+        const statusDiv = document.getElementById('apiStatus');
+        statusDiv.innerHTML =
+          '<span class="warning">🔄 Testing subscription API...</span>';
+
+        try {
+          const response = await fetch(
+            'http://localhost:8000/api/v1/subscriptions/current',
+            {
+              method: 'GET',
+              headers: {
+                Authorization: 'Bearer ' + localStorage.getItem('token'),
+                'Content-Type': 'application/json',
+              },
+            }
+          );
+
+          const data = await response.json();
+
+          if (data.success) {
+            statusDiv.innerHTML = `
+              <span class="success">✅ Subscription API Response:</span><br>
+              <strong>Plan:</strong> ${data.data.subscription_plan.name}<br>
+              <strong>Status:</strong> ${data.data.status}<br>
+              <strong>Is Trial:</strong> ${
+                data.data.is_trial ? 'Yes' : 'No'
+              }<br>
+              <strong>Days Remaining:</strong> ${data.days_remaining}
+            `;
+          } else {
+            statusDiv.innerHTML =
+              '<span class="error">❌ Subscription API Error: ' +
+              data.message +
+              '</span>';
+          }
+        } catch (error) {
+          statusDiv.innerHTML =
+            '<span class="error">❌ Subscription API Network Error: ' +
+            error.message +
+            '</span>';
+        }
+      }
+
+      async function testBusinessApi() {
+        const statusDiv = document.getElementById('apiStatus');
+        const currentStatus = statusDiv.innerHTML;
+        statusDiv.innerHTML =
+          currentStatus +
+          '<br><span class="warning">🔄 Testing business API...</span>';
+
+        try {
+          const response = await fetch(
+            'http://localhost:8000/api/v1/businesses',
+            {
+              method: 'GET',
+              headers: {
+                Authorization: 'Bearer ' + localStorage.getItem('token'),
+                'Content-Type': 'application/json',
+              },
+            }
+          );
+
+          const data = await response.json();
+
+          if (Array.isArray(data) && data.length > 0) {
+            const business = data[0];
+            statusDiv.innerHTML =
+              currentStatus +
+              `
+              <br><span class="success">✅ Business API Response:</span><br>
+              <strong>Business:</strong> ${business.name}<br>
+              <strong>Current Subscription ID:</strong> ${
+                business.current_subscription_id
+              }<br>
+              <strong>Subscription Info:</strong> ${
+                business.subscription_info
+                  ? JSON.stringify(business.subscription_info, null, 2)
+                  : 'None'
+              }
+            `;
+          } else {
+            statusDiv.innerHTML =
+              currentStatus +
+              '<br><span class="error">❌ Business API Error: No data</span>';
+          }
+        } catch (error) {
+          statusDiv.innerHTML =
+            currentStatus +
+            '<br><span class="error">❌ Business API Network Error: ' +
+            error.message +
+            '</span>';
+        }
+      }
+
+      function forceRefreshData() {
+        const statusDiv = document.getElementById('refreshStatus');
+        statusDiv.innerHTML =
+          '<span class="warning">🔄 Force refreshing data...</span>';
+
+        try {
+          // Clear all cached data
+          localStorage.clear();
+          sessionStorage.clear();
+
+          // Force reload with cache busting
+          const timestamp = new Date().getTime();
+          window.location.href = window.location.origin + '?t=' + timestamp;
+
+          statusDiv.innerHTML =
+            '<span class="success">✅ Data refresh initiated!</span>';
+        } catch (error) {
+          statusDiv.innerHTML =
+            '<span class="error">❌ Error refreshing data: ' +
+            error.message +
+            '</span>';
+        }
+      }
+
+      function goToApp() {
+        window.open('/', '_blank');
+      }
+
+      function goToSubscriptionSettings() {
+        window.open('/subscription-settings', '_blank');
+      }
+
+      // Auto-clear cache on page load
+      window.addEventListener('load', function () {
+        console.log('🔄 Auto-clearing cache on page load...');
+        clearAllCache();
+      });
+    </script>
+  </body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,810 @@
+[
+  {
+    "id": "TC001",
+    "title": "User Login with Valid Credentials",
+    "description": "Verify that users can login successfully with valid email and password for different roles and are redirected to their respective dashboards.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to login page"
+      },
+      {
+        "type": "action",
+        "description": "Enter valid email and password for a super_admin user"
+      },
+      {
+        "type": "action",
+        "description": "Click login button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify login succeeds and user is redirected to super_admin dashboard"
+      },
+      {
+        "type": "action",
+        "description": "Logout and repeat with valid owner credentials"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify login succeeds and user is redirected to owner dashboard"
+      },
+      {
+        "type": "action",
+        "description": "Logout and repeat for admin, kasir, kitchen, and waiter roles similarly"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify login success and dashboard redirection matches user role"
+      }
+    ]
+  },
+  {
+    "id": "TC002",
+    "title": "User Login with Invalid Credentials",
+    "description": "Verify that login fails with incorrect email or password and displays appropriate error messages.",
+    "category": "error handling",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to login page"
+      },
+      {
+        "type": "action",
+        "description": "Input invalid email with any password"
+      },
+      {
+        "type": "action",
+        "description": "Click login button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify error message for incorrect credentials is displayed"
+      },
+      {
+        "type": "action",
+        "description": "Input valid email with wrong password"
+      },
+      {
+        "type": "action",
+        "description": "Click login button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify error message for incorrect credentials is displayed"
+      },
+      {
+        "type": "action",
+        "description": "Attempt login with empty email and password fields"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify form validation messages for required fields are shown"
+      }
+    ]
+  },
+  {
+    "id": "TC003",
+    "title": "Role-based Access Control Enforcement",
+    "description": "Verify that users cannot access pages or functionalities beyond their role permissions.",
+    "category": "security",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login as kasir and attempt to access employee management page"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify access is denied or redirected"
+      },
+      {
+        "type": "action",
+        "description": "Login as kitchen and try to create a business record"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify action is blocked due to insufficient permission"
+      },
+      {
+        "type": "action",
+        "description": "Login as super_admin and access all pages"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify full access to all features and modules"
+      },
+      {
+        "type": "action",
+        "description": "Verify API endpoints enforce role-based permissions by attempting unauthorized requests"
+      },
+      {
+        "type": "assertion",
+        "description": "API returns 403 Forbidden for unauthorized roles"
+      }
+    ]
+  },
+  {
+    "id": "TC004",
+    "title": "Multi-Business and Multi-Outlet Switching",
+    "description": "Verify user can switch between multiple businesses and outlets and that data updates accordingly.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login as user assigned to multiple businesses and outlets"
+      },
+      {
+        "type": "action",
+        "description": "Switch to a different business from UI control"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify dashboard and data updates to selected business context"
+      },
+      {
+        "type": "action",
+        "description": "Switch to a different outlet within the chosen business"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify stock, orders, and reports display data for selected outlet"
+      },
+      {
+        "type": "action",
+        "description": "Perform transactions in switched outlet and confirm data consistency"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that stock levels and sales data correspond to the correct business and outlet"
+      }
+    ]
+  },
+  {
+    "id": "TC005",
+    "title": "POS Transaction Flow Cashier Mode",
+    "description": "Verify completing a POS transaction from product selection to receipt and notification in Cashier mode.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login as kasir and open Cashier POS"
+      },
+      {
+        "type": "action",
+        "description": "Search and add multiple products to cart using barcode and manual search"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify products are correctly added with correct quantities and prices"
+      },
+      {
+        "type": "action",
+        "description": "Hold the order and then recall it"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify order is saved and recalled accurately with all items intact"
+      },
+      {
+        "type": "action",
+        "description": "Select payment method: Cash"
+      },
+      {
+        "type": "action",
+        "description": "Complete the transaction"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify stock is decremented appropriately for products sold"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify receipt is printed and WhatsApp payment notification is sent automatically"
+      },
+      {
+        "type": "action",
+        "description": "Repeat transaction using credit card and e-wallet payment methods"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify payment status is tracked correctly with Midtrans integration"
+      }
+    ]
+  },
+  {
+    "id": "TC006",
+    "title": "POS Transaction Flow Kitchen Mode Order Processing",
+    "description": "Verify kitchen POS handles order status updates and displays correct order information for kitchen staff.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login as kitchen user and open Kitchen POS"
+      },
+      {
+        "type": "action",
+        "description": "View incoming orders with correct product details and modifiers"
+      },
+      {
+        "type": "action",
+        "description": "Change order status through preparation stages (e.g. cooking, ready)"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify status updates persist and reflect in order management and waiter POS"
+      },
+      {
+        "type": "action",
+        "description": "Attempt to update or cancel orders not assigned to outlet"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify access denied or action blocked"
+      }
+    ]
+  },
+  {
+    "id": "TC007",
+    "title": "Product Management CRUD Operations",
+    "description": "Verify Create, Read, Update, Delete operations on products including categories, variants, and stock per outlet.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login as admin or owner and navigate to product management"
+      },
+      {
+        "type": "action",
+        "description": "Create new product with multiple variants and category assignments"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify product is created and visible in product list with correct details"
+      },
+      {
+        "type": "action",
+        "description": "Edit product details including price, images, stock per outlet"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify updates persist and display correctly"
+      },
+      {
+        "type": "action",
+        "description": "Attempt to delete product that has pending orders"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify system prevents deletion and shows appropriate error"
+      },
+      {
+        "type": "action",
+        "description": "Search for products using keywords and barcode"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify search results are accurate and performance is within acceptable limits"
+      },
+      {
+        "type": "action",
+        "description": "Upload invalid image formats for product"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify validation errors are shown and upload is rejected"
+      }
+    ]
+  },
+  {
+    "id": "TC008",
+    "title": "Inventory Stock Alerts and Movements",
+    "description": "Verify real-time stock tracking, low stock alerts, and ability to transfer stock between outlets.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Simulate sales to decrement stock below alert thresholds"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify low stock alert notifications appear in inventory management dashboard"
+      },
+      {
+        "type": "action",
+        "description": "Perform stock transfer from one outlet to another"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify stock levels update correctly on both source and destination outlets"
+      },
+      {
+        "type": "action",
+        "description": "Attempt stock transfer with insufficient source stock"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify transfer is blocked and error message displayed"
+      }
+    ]
+  },
+  {
+    "id": "TC009",
+    "title": "Employee Attendance with GPS Validation",
+    "description": "Verify attendance clock in/out records with GPS location validation and proper shift assignment.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login as employee and navigate to attendance page"
+      },
+      {
+        "type": "action",
+        "description": "Attempt clock in outside of valid GPS location"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify attendance is rejected with proper message"
+      },
+      {
+        "type": "action",
+        "description": "Clock in within valid GPS location and select correct shift"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify attendance record is created with timestamp and GPS coordinates"
+      },
+      {
+        "type": "action",
+        "description": "Clock out and verify attendance duration is computed correctly"
+      },
+      {
+        "type": "action",
+        "description": "Generate attendance report with filters by date and employee"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify report accuracy and export functionality to PDF and Excel"
+      }
+    ]
+  },
+  {
+    "id": "TC010",
+    "title": "Financial Management and Reporting",
+    "description": "Verify cash flow tracking, expense recording, tax management, and financial report generation.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login as admin or owner and navigate to financial management"
+      },
+      {
+        "type": "action",
+        "description": "Record new financial transactions including income, expenses, and taxes"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify transactions are recorded with correct categories and amounts"
+      },
+      {
+        "type": "action",
+        "description": "Generate cash flow report and verify data correctness"
+      },
+      {
+        "type": "action",
+        "description": "Generate tax reports with correct aggregation"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify reports match expected financial data"
+      },
+      {
+        "type": "action",
+        "description": "Export financial reports to PDF and Excel formats"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify export files are generated correctly and data is accurate"
+      }
+    ]
+  },
+  {
+    "id": "TC011",
+    "title": "Report Generation and Export Functionality",
+    "description": "Verify all report types can be generated with filters and exported to PDF and Excel correctly.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login and open reports section"
+      },
+      {
+        "type": "action",
+        "description": "Select Sales Summary report and apply date filters"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify report displays accurate aggregated data and charts"
+      },
+      {
+        "type": "action",
+        "description": "Export the Sales Summary report to PDF"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify exported PDF contains all report data and charts correctly formatted"
+      },
+      {
+        "type": "action",
+        "description": "Export the Sales Summary report to Excel"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify Excel file contains correct tabular data"
+      },
+      {
+        "type": "action",
+        "description": "Repeat report generation and export for all other report types (Cashier Performance, Inventory Status, Attendance Report, etc.)"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify all exports are accurate and formatting consistent"
+      }
+    ]
+  },
+  {
+    "id": "TC012",
+    "title": "WhatsApp Notification Integration",
+    "description": "Verify automated WhatsApp notifications after transactions and the ability to send/test custom messages.",
+    "category": "integration",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Complete a POS transaction successfully"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify payment receipt notification is sent automatically via WhatsApp to configured number"
+      },
+      {
+        "type": "action",
+        "description": "Test WhatsApp notification sending from outlet settings"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify test notification is sent and received successfully"
+      },
+      {
+        "type": "action",
+        "description": "Send a custom WhatsApp message using multi-provider support"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify message delivery status and content correctness"
+      },
+      {
+        "type": "action",
+        "description": "Attempt notification with invalid API keys or configuration"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify system handles errors gracefully and logs failures"
+      }
+    ]
+  },
+  {
+    "id": "TC013",
+    "title": "Subscription Management and Billing",
+    "description": "Verify subscription plan creation, usage tracking and billing processes for multi-tenant setup.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Create subscription plans with different tiers and pricing"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify plans are listed and selectable in subscription management"
+      },
+      {
+        "type": "action",
+        "description": "Assign subscriptions to businesses or tenants"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify usage is tracked correctly against subscribed plan limits"
+      },
+      {
+        "type": "action",
+        "description": "Generate billing invoices for active subscriptions"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify invoice data accuracy and generation"
+      },
+      {
+        "type": "action",
+        "description": "Test handling of expired or cancelled subscriptions"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify access restrictions and notifications for expired subscriptions"
+      }
+    ]
+  },
+  {
+    "id": "TC014",
+    "title": "API Performance and Response Time",
+    "description": "Verify API endpoints meet performance requirements with response times under 1 second under load.",
+    "category": "performance",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Perform API calls to login, product list, order creation, and report generation endpoints at normal load"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify response times are under 1 second"
+      },
+      {
+        "type": "action",
+        "description": "Simulate concurrent requests (100 users) performing critical API calls"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify backend remains stable and response time averages remain within acceptable limits"
+      },
+      {
+        "type": "action",
+        "description": "Verify page load times in frontend are under 3 seconds for key pages"
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm no UI freezes or errors occur during load"
+      }
+    ]
+  },
+  {
+    "id": "TC015",
+    "title": "Form Input Validation and Error Handling",
+    "description": "Verify all forms validate input correctly based on schemas and display appropriate error messages.",
+    "category": "error handling",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Open login form and submit with empty fields"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify required field validation messages appear"
+      },
+      {
+        "type": "action",
+        "description": "Open product creation form and enter invalid data types in price and stock fields"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify validation messages prevent submission"
+      },
+      {
+        "type": "action",
+        "description": "Try to create product with missing required fields"
+      },
+      {
+        "type": "assertion",
+        "description": "Form refuses submission and highlights errors"
+      },
+      {
+        "type": "action",
+        "description": "Test similar validation behavior for attendance, order, finance, and subscription forms"
+      },
+      {
+        "type": "assertion",
+        "description": "All forms enforce proper validation and user-friendly error display"
+      }
+    ]
+  },
+  {
+    "id": "TC016",
+    "title": "Refund Handling via Payment Gateway Midtrans",
+    "description": "Verify that refunds can be initiated, processed, and tracked correctly with Midtrans payment gateway integration.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Complete a transaction using Midtrans payment gateway"
+      },
+      {
+        "type": "action",
+        "description": "Initiate a refund request from order management"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify refund request is sent and acknowledged by Midtrans"
+      },
+      {
+        "type": "action",
+        "description": "Track refund status until completion"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify refund status updates in system and reflected correctly"
+      },
+      {
+        "type": "action",
+        "description": "Attempt refund on non-refundable or invalid orders"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify system blocks refund and shows error message"
+      }
+    ]
+  },
+  {
+    "id": "TC017",
+    "title": "Dashboard Role-based Data Display",
+    "description": "Verify that each user role sees correct dashboards with relevant statistics and quick action panels.",
+    "category": "ui",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login as super_admin and verify dashboard includes all statistics and management quick actions"
+      },
+      {
+        "type": "assertion",
+        "description": "Dashboard data matches comprehensive business metrics"
+      },
+      {
+        "type": "action",
+        "description": "Login as kasir and verify dashboard focuses on sales and ongoing transactions"
+      },
+      {
+        "type": "assertion",
+        "description": "Dashboard components relevant to cashier role are visible and functional"
+      },
+      {
+        "type": "action",
+        "description": "Login as kitchen and waiter roles, verify respective dashboards show order statuses and assigned tables"
+      },
+      {
+        "type": "assertion",
+        "description": "Dashboards show accurate real-time information for roles"
+      }
+    ]
+  },
+  {
+    "id": "TC018",
+    "title": "Order Hold and Recall Functionality",
+    "description": "Verify that orders can be put on hold and recalled correctly in POS systems.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Start new order in Cashier POS and add multiple products"
+      },
+      {
+        "type": "action",
+        "description": "Put the order on hold"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify order is saved with all details and marked as held"
+      },
+      {
+        "type": "action",
+        "description": "Recall the held order from list"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify order appears with all previous items and is editable"
+      },
+      {
+        "type": "action",
+        "description": "Attempt to place a new hold with invalid or incomplete order data"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify system blocks hold and prompts for correction"
+      }
+    ]
+  },
+  {
+    "id": "TC019",
+    "title": "Employee Role and Outlet Assignment Management",
+    "description": "Verify that admins can assign roles and outlets to employees and changes reflect correctly.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login as admin and open employee management"
+      },
+      {
+        "type": "action",
+        "description": "Create a new employee and assign role casier and specific outlet"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify employee appears in list with correct role and outlet"
+      },
+      {
+        "type": "action",
+        "description": "Update existing employee to multiple outlet assignments and different role"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify updates persist and user permissions are updated accordingly"
+      },
+      {
+        "type": "action",
+        "description": "Try to assign invalid or duplicate roles"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify system validates role assignment and rejects invalid entries"
+      }
+    ]
+  },
+  {
+    "id": "TC020",
+    "title": "API Authentication and Authorization",
+    "description": "Verify that API endpoints enforce authentication and restrict access based on user session and permissions.",
+    "category": "security",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Attempt API calls to protected endpoints without authentication token"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify 401 Unauthorized responses"
+      },
+      {
+        "type": "action",
+        "description": "Login and obtain valid authentication token"
+      },
+      {
+        "type": "action",
+        "description": "Access API endpoints with valid token and authorized role"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify successful data response"
+      },
+      {
+        "type": "action",
+        "description": "Attempt access to restricted endpoints with token of unauthorized role"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify 403 Forbidden responses"
+      },
+      {
+        "type": "action",
+        "description": "Logout and attempt same requests"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify authentication is required and token invalidated"
+      }
+    ]
+  }
+]

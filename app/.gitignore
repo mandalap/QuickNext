@@ -1,0 +1,7 @@
+
+# Backup files (SENSITIVE)
+*.backup.*
+.env.backup*
+backend/.env.backup*
+frontend/build.backup*
+beranda/.next.backup*

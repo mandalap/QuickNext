@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Clear Cache & Refresh</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f5f5f5;
+      }
+      .container {
+        background: white;
+        padding: 30px;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+      .step {
+        margin: 20px 0;
+        padding: 15px;
+        border-left: 4px solid #007bff;
+        background-color: #f8f9fa;
+      }
+      .step h3 {
+        margin-top: 0;
+        color: #007bff;
+      }
+      button {
+        background-color: #007bff;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 5px;
+        cursor: pointer;
+        margin: 5px;
+      }
+      button:hover {
+        background-color: #0056b3;
+      }
+      .success {
+        color: #28a745;
+        font-weight: bold;
+      }
+      .warning {
+        color: #ffc107;
+        font-weight: bold;
+      }
+      .error {
+        color: #dc3545;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🔄 Clear Cache & Refresh Subscription Data</h1>
+
+      <div class="step">
+        <h3>Step 1: Clear Browser Cache</h3>
+        <p>
+          Press <strong>Ctrl+Shift+R</strong> (Windows/Linux) or
+          <strong>Cmd+Shift+R</strong> (Mac) to hard refresh the page.
+        </p>
+        <button onclick="hardRefresh()">Hard Refresh Page</button>
+      </div>
+
+      <div class="step">
+        <h3>Step 2: Clear Local Storage</h3>
+        <p>Clear all cached data from localStorage.</p>
+        <button onclick="clearLocalStorage()">Clear Local Storage</button>
+        <div id="localStorageStatus"></div>
+      </div>
+
+      <div class="step">
+        <h3>Step 3: Clear Session Storage</h3>
+        <p>Clear all cached data from sessionStorage.</p>
+        <button onclick="clearSessionStorage()">Clear Session Storage</button>
+        <div id="sessionStorageStatus"></div>
+      </div>
+
+      <div class="step">
+        <h3>Step 4: Test API Endpoint</h3>
+        <p>Test the subscription API endpoint directly.</p>
+        <button onclick="testApiEndpoint()">Test API</button>
+        <div id="apiStatus"></div>
+      </div>
+
+      <div class="step">
+        <h3>Step 5: Navigate to Subscription Settings</h3>
+        <p>Go to the subscription settings page to see the updated data.</p>
+        <button onclick="goToSubscriptionSettings()">
+          Go to Subscription Settings
+        </button>
+      </div>
+
+      <div class="step">
+        <h3>Expected Result</h3>
+        <p>After completing all steps, you should see:</p>
+        <ul>
+          <li><strong>Navbar:</strong> "Trial 7 hari tersisa"</li>
+          <li><strong>Subscription Settings:</strong> "Trial 7 Hari ACTIVE"</li>
+          <li><strong>Days Remaining:</strong> "7 hari tersisa"</li>
+        </ul>
+      </div>
+    </div>
+
+    <script>
+      function hardRefresh() {
+        window.location.reload(true);
+      }
+
+      function clearLocalStorage() {
+        try {
+          localStorage.clear();
+          document.getElementById('localStorageStatus').innerHTML =
+            '<span class="success">✅ Local Storage cleared successfully!</span>';
+        } catch (error) {
+          document.getElementById('localStorageStatus').innerHTML =
+            '<span class="error">❌ Error clearing Local Storage: ' +
+            error.message +
+            '</span>';
+        }
+      }
+
+      function clearSessionStorage() {
+        try {
+          sessionStorage.clear();
+          document.getElementById('sessionStorageStatus').innerHTML =
+            '<span class="success">✅ Session Storage cleared successfully!</span>';
+        } catch (error) {
+          document.getElementById('sessionStorageStatus').innerHTML =
+            '<span class="error">❌ Error clearing Session Storage: ' +
+            error.message +
+            '</span>';
+        }
+      }
+
+      async function testApiEndpoint() {
+        const statusDiv = document.getElementById('apiStatus');
+        statusDiv.innerHTML =
+          '<span class="warning">🔄 Testing API endpoint...</span>';
+
+        try {
+          const response = await fetch(
+            'http://localhost:8000/api/v1/subscriptions/current',
+            {
+              method: 'GET',
+              headers: {
+                Authorization: 'Bearer ' + localStorage.getItem('token'),
+                'Content-Type': 'application/json',
+              },
+            }
+          );
+
+          const data = await response.json();
+
+          if (data.success) {
+            statusDiv.innerHTML = `
+                        <span class="success">✅ API Response:</span><br>
+                        <strong>Plan:</strong> ${
+                          data.data.subscription_plan.name
+                        }<br>
+                        <strong>Status:</strong> ${data.data.status}<br>
+                        <strong>Is Trial:</strong> ${
+                          data.data.is_trial ? 'Yes' : 'No'
+                        }<br>
+                        <strong>Days Remaining:</strong> ${data.days_remaining}
+                    `;
+          } else {
+            statusDiv.innerHTML =
+              '<span class="error">❌ API Error: ' + data.message + '</span>';
+          }
+        } catch (error) {
+          statusDiv.innerHTML =
+            '<span class="error">❌ Network Error: ' +
+            error.message +
+            '</span>';
+        }
+      }
+
+      function goToSubscriptionSettings() {
+        window.open('/subscription-settings', '_blank');
+      }
+
+      // Auto-clear on page load
+      window.addEventListener('load', function () {
+        console.log('🔄 Auto-clearing cache on page load...');
+        clearLocalStorage();
+        clearSessionStorage();
+      });
+    </script>
+  </body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
