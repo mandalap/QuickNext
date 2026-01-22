@@ -20,20 +20,22 @@ NC='\033[0m' # No Color
 PROJECT_DIR="/var/www/kasir-pos"
 REPO_URL="https://github.com/mandalap/QuickNext.git"
 BRANCH="development"
-VPS_IP=""  # Will be detected automatically
+VPS_IP="103.59.95.78"  # Default IP; override with: sudo bash deploy-vps-ip-only.sh 103.59.95.78
 
 # Check if running as root
 if [ "$EUID" -ne 0 ]; then 
     echo -e "${RED}❌ Script perlu dijalankan dengan sudo${NC}"
-    echo "Usage: sudo bash scripts/deploy-vps-ip-only.sh"
+    echo "Usage: sudo bash scripts/deploy-vps-ip-only.sh [IP]"
+    echo "Example: sudo bash scripts/deploy-vps-ip-only.sh 103.59.95.78"
     exit 1
 fi
 
-# Detect VPS IP (Public IP)
-# Try to get public IP, fallback to manual setting
-VPS_IP=$(curl -s ifconfig.me || curl -s icanhazip.com || curl -s ipinfo.io/ip || echo "103.172.205.57")
-if [ -z "$VPS_IP" ] || [ "$VPS_IP" = "" ]; then
-    VPS_IP="103.172.205.57"  # Fallback to known public IP
+# IP: use argument or default 103.59.95.78 (untuk install ulang VPS)
+if [ -n "$1" ]; then
+    VPS_IP="$1"
+    echo -e "${BLUE}Using IP from argument: $VPS_IP${NC}"
+else
+    echo -e "${BLUE}Using default VPS IP: $VPS_IP${NC}"
 fi
 echo -e "${BLUE}📋 Configuration:${NC}"
 echo "   Project Directory: $PROJECT_DIR"
@@ -183,9 +185,9 @@ echo ""
 echo -e "${YELLOW}Step 11: Setting up Frontend (React)...${NC}"
 cd "$PROJECT_DIR/app/frontend"
 
-# Install dependencies
+# Install dependencies (tanpa --production; devDependencies perlu untuk build)
 echo "📦 Installing npm dependencies..."
-npm install --production
+npm install
 
 # Create .env.production with IP
 echo "📝 Creating .env.production with IP address..."
@@ -208,8 +210,8 @@ if [ -d "$PROJECT_DIR/app/beranda" ]; then
     echo -e "${YELLOW}Step 12: Setting up Landing Page (Next.js)...${NC}"
     cd "$PROJECT_DIR/app/beranda"
     
-    # Install dependencies
-    npm install --production
+    # Install dependencies (tanpa --production; devDependencies perlu untuk build)
+    npm install
     
     # Build production
     npm run build
@@ -364,6 +366,16 @@ php artisan view:cache || echo "⚠️  View cache failed"
 echo -e "${GREEN}✅ Configuration cached!${NC}"
 echo ""
 
+# Step 18: Run verification (VPS only - does not fail deploy)
+echo -e "${YELLOW}Step 18: Verifying deployment...${NC}"
+cd "$PROJECT_DIR"
+if [ -f "scripts/verify-deployment.sh" ]; then
+    bash scripts/verify-deployment.sh || true
+else
+    echo -e "${YELLOW}⚠️  scripts/verify-deployment.sh not found, skip verification.${NC}"
+fi
+echo ""
+
 # Summary
 echo "========================================="
 echo -e "${GREEN}✅ Deployment Complete!${NC}"
@@ -402,6 +414,10 @@ echo "   pm2 logs"
 echo ""
 echo "6. Check Nginx status:"
 echo "   sudo systemctl status nginx"
+echo ""
+echo "7. Cek ulang verifikasi (setelah DB & migrasi selesai):"
+echo "   cd $PROJECT_DIR"
+echo "   bash scripts/verify-deployment.sh"
 echo ""
 echo -e "${GREEN}🎉 Deployment selesai!${NC}"
 echo ""
