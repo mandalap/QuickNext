@@ -60,9 +60,10 @@ apt install -y software-properties-common
 add-apt-repository -y ppa:ondrej/php
 apt update -qq
 
-# Install PHP 8.3 and extensions
+# Install PHP 8.3 and extensions (include php8.3-redis for Laravel Redis)
 apt install -y php8.3 php8.3-cli php8.3-fpm php8.3-mysql php8.3-mbstring \
-    php8.3-xml php8.3-curl php8.3-zip php8.3-gd php8.3-bcmath php8.3-intl
+    php8.3-xml php8.3-curl php8.3-zip php8.3-gd php8.3-bcmath php8.3-intl \
+    php8.3-redis
 
 # Verify PHP version
 PHP_VERSION=$(php -v | head -n 1)

@@ -86,10 +86,12 @@ if ! grep -q "^REDIS_CLIENT=" "$ENV_FILE"; then
     echo "QUEUE_CONNECTION=redis" >> "$ENV_FILE"
     echo "✅ Redis config added to .env"
 else
-    echo "⚠️  Redis config already exists in .env, skipping..."
+    echo "⚠️  Redis config already exists in .env, updating to use Predis..."
 fi
 
-# Update existing values jika ada
+# Always force Predis (we install it; phpredis needs php8.3-redis extension)
+# Avoids "Class Redis not found" when extension is missing
+sed -i 's/^REDIS_CLIENT=.*/REDIS_CLIENT=predis/' "$ENV_FILE" 2>/dev/null || true
 sed -i 's/^CACHE_STORE=.*/CACHE_STORE=redis/' "$ENV_FILE" 2>/dev/null || true
 sed -i 's/^SESSION_DRIVER=.*/SESSION_DRIVER=redis/' "$ENV_FILE" 2>/dev/null || true
 sed -i 's/^QUEUE_CONNECTION=.*/QUEUE_CONNECTION=redis/' "$ENV_FILE" 2>/dev/null || true

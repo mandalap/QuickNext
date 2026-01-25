@@ -540,6 +540,33 @@ DB::connection()->getPdo();
 
 ---
 
+### **Problem 5b: `Class "Redis" not found` (saat config:cache / setup-redis)**
+
+Laravel memakai **phpredis** (ekstensi PHP) tapi ekstensi `php-redis` belum terpasang, atau `.env` punya `REDIS_CLIENT=phpredis` sementara kita pakai **Predis**.
+
+**Opsi A – Pakai Predis (tanpa ekstensi):**
+```bash
+cd /var/www/kasir-pos/app/backend
+# Pastikan REDIS_CLIENT=predis di .env
+sed -i 's/^REDIS_CLIENT=.*/REDIS_CLIENT=predis/' .env
+php artisan config:clear
+php artisan config:cache
+```
+
+**Opsi B – Install ekstensi php-redis:**
+```bash
+sudo apt update
+sudo apt install -y php8.3-redis
+sudo systemctl restart php8.3-fpm
+cd /var/www/kasir-pos/app/backend
+php artisan config:clear
+php artisan config:cache
+```
+
+Setelah itu jalankan lagi `setup-redis-vps.sh` atau deploy step yang gagal.
+
+---
+
 ### **Problem 6: Cek Manual Step 1–5 — Beberapa FAIL (DB, Frontend build, PM2, Nginx)**
 
 **Gejala:** System requirements OK, tapi Step 3–5 ada yang gagal:

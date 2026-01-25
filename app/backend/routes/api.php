@@ -118,12 +118,17 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->get('/user', function (Req
     return $request->user();
 });
 
-// User Profile & Password Routes
-// ✅ SECURITY: Rate limiting untuk profile routes (30 requests per minute)
+// User Profile - READ operations (higher limit untuk session check, polling, multi-tab)
+// ✅ SECURITY: Rate limiting 200 req/min untuk read-only profile check
+Route::prefix('v1/user')->middleware(['auth:sanctum', 'throttle:200,1'])->group(function () {
+    Route::get('/profile/check', [AuthController::class, 'checkProfileComplete']);
+});
+
+// User Profile - WRITE operations (stricter limit untuk mutation)
+// ✅ SECURITY: Rate limiting 30 req/min untuk profile updates & password change
 Route::prefix('v1/user')->middleware(['auth:sanctum', 'throttle:30,1'])->group(function () {
     Route::put('/profile', [AuthController::class, 'updateProfile']);
     Route::post('/profile/complete', [AuthController::class, 'completeProfile']);
-    Route::get('/profile/check', [AuthController::class, 'checkProfileComplete']);
     Route::post('/change-password', [AuthController::class, 'changePassword']);
 });
 

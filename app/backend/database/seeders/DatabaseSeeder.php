@@ -2,33 +2,65 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
-// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\PermissionRegistrar;
 
-class DatabaseSeeder extends Seeder
+class RolePermissionSeeder extends Seeder
 {
-    /**
-     * Seed the application's database.
-     */
     public function run(): void
     {
-        // Seed subscription plans first
-        $this->call([
-            BusinessTypeSeeder::class,
-            SubscriptionPlanSeeder::class,
-            OutletSeeder::class,
-            // ⚠️ DummyDataSeeder: Hanya untuk data test, tidak akan menghapus user yang sudah terdaftar
-            DummyDataSeeder::class, // Add comprehensive dummy data for testing
-            FilamentAdminSeeder::class, // Create Filament admin user
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        $permissions = [
+            'view dashboard',
+            'manage users',
+            'manage outlets',
+            'manage products',
+            'manage transactions',
+            'manage subscriptions',
+            'view reports',
+        ];
+
+        foreach ($permissions as $permission) {
+            Permission::firstOrCreate([
+                'name' => $permission,
+                'guard_name' => 'web',
+            ]);
+        }
+
+        $admin = Role::firstOrCreate([
+            'name' => 'admin',
+            'guard_name' => 'web',
         ]);
 
-        // User::factory(10)->create();
-
-        // ⚠️ Test user - hanya untuk development
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+        $owner = Role::firstOrCreate([
+            'name' => 'owner',
+            'guard_name' => 'web',
         ]);
+
+        $kasir = Role::firstOrCreate([
+            'name' => 'kasir',
+            'guard_name' => 'web',
+        ]);
+
+        $admin->syncPermissions(
+            Permission::where('guard_name', 'web')->get()
+        );
+
+        $owner->syncPermissions([
+            'view dashboard',
+            'manage outlets',
+            'manage products',
+            'manage transactions',
+            'view reports',
+        ]);
+
+        $kasir->syncPermissions([
+            'manage transactions',
+        ]);
+
+        $this->command->info('✅ Roles & permissions seeded successfully');
     }
 }
