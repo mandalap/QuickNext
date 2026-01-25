@@ -1,9 +1,9 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-hot-toast';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import * as z from 'zod';
 import { useAuth } from '../../contexts/AuthContext';
 import { Alert, AlertDescription } from '../ui/alert';
@@ -34,6 +34,22 @@ const Login = () => {
     loadBusinesses,
   } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Handle OAuth error from query parameter
+  useEffect(() => {
+    const oauthError = searchParams.get('oauth_error');
+    if (oauthError === '1') {
+      const errorMsg = 'Login dengan Google gagal. Silakan coba lagi atau gunakan email dan password.';
+      setError(errorMsg);
+      toast.error(errorMsg, {
+        duration: 6000,
+      });
+      // Remove oauth_error from URL
+      searchParams.delete('oauth_error');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const {
     register,

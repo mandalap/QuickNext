@@ -17,7 +17,39 @@ class SocialAuthController extends Controller
      */
     public function redirectToGoogle(): RedirectResponse
     {
-        return Socialite::driver('google')->redirect();
+        try {
+            // Validate Google OAuth configuration
+            $clientId = config('services.google.client_id');
+            $clientSecret = config('services.google.client_secret');
+            $redirectUri = config('services.google.redirect');
+
+            if (empty($clientId) || empty($clientSecret)) {
+                Log::error('Google OAuth configuration missing', [
+                    'client_id_set' => !empty($clientId),
+                    'client_secret_set' => !empty($clientSecret),
+                    'redirect_uri' => $redirectUri
+                ]);
+                throw new \Exception('Google OAuth tidak dikonfigurasi dengan benar. Silakan hubungi administrator.');
+            }
+
+            Log::info('Google OAuth redirect initiated', [
+                'redirect_uri' => $redirectUri,
+                'client_id_prefix' => substr($clientId, 0, 20) . '...'
+            ]);
+
+            return Socialite::driver('google')->redirect();
+        } catch (\Throwable $e) {
+            Log::error('Google OAuth redirect failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            $frontendUrl = env('FRONTEND_URL', 'https://app.quickkasir.com');
+            if (app()->environment('production') && !str_starts_with($frontendUrl, 'https://')) {
+                $frontendUrl = str_replace('http://', 'https://', $frontendUrl);
+            }
+            return redirect()->away($frontendUrl . '/login?oauth_error=1');
+        }
     }
 
     /**
@@ -82,10 +114,24 @@ class SocialAuthController extends Controller
 
             return redirect()->away($redirectUrl);
         } catch (\Throwable $e) {
-            Log::error('Google OAuth failed', [
+            // Log detailed error information
+            $errorDetails = [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
+                'error_class' => get_class($e),
+                'query_params' => request()->all(),
+                'has_code' => request()->has('code'),
+                'has_error_param' => request()->has('error'),
+                'error_param' => request()->get('error'),
+                'error_description' => request()->get('error_description'),
+            ];
+
+            // Add trace only in debug mode
+            if (config('app.debug')) {
+                $errorDetails['trace'] = $e->getTraceAsString();
+            }
+
+            Log::error('Google OAuth failed', $errorDetails);
+
             // Get FRONTEND_URL from env with proper fallback for production
             $frontendUrl = env('FRONTEND_URL', 'https://app.quickkasir.com');
             // Ensure it's HTTPS in production
