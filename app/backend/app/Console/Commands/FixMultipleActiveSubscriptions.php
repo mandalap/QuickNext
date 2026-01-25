@@ -23,7 +23,7 @@ class FixMultipleActiveSubscriptions extends Command
      *
      * @var string
      */
-    protected $description = 'Fix users with multiple active subscriptions (keep newest, mark others as upgraded)';
+    protected $description = 'Fix users with multiple active subscriptions (prioritize paid over trial, mark others as upgraded)';
 
     /**
      * Execute the console command.
@@ -57,9 +57,13 @@ class FixMultipleActiveSubscriptions extends Command
 
         foreach ($users as $user) {
             // Get all active subscriptions for this user
-            $activeSubscriptions = UserSubscription::where('user_id', $user->id)
+            // ✅ CRITICAL FIX: Prioritize PAID subscription (is_trial = false) over TRIAL subscription (is_trial = true)
+            $activeSubscriptions = UserSubscription::with('subscriptionPlan')
+                ->where('user_id', $user->id)
                 ->where('status', 'active')
-                ->orderBy('created_at', 'desc')
+                ->where('ends_at', '>', now()) // Only non-expired
+                ->orderBy('is_trial', 'asc') // Paid subscriptions (is_trial = false) first
+                ->orderBy('created_at', 'desc') // Then by newest
                 ->get();
 
             if ($activeSubscriptions->count() > 1) {
@@ -68,18 +72,31 @@ class FixMultipleActiveSubscriptions extends Command
                 $this->warn("👤 User ID: {$user->id} ({$user->email})");
                 $this->line("   Found {$activeSubscriptions->count()} active subscriptions:");
                 
-                // Keep the newest, mark others as upgraded
-                $newest = $activeSubscriptions->first();
-                $this->info("   ✅ KEEP: Subscription ID {$newest->id} ({$newest->subscription_code}) - Created: {$newest->created_at}");
+                // ✅ CRITICAL FIX: Keep the PAID subscription (is_trial = false), mark others as upgraded
+                // If no paid subscription, keep the newest
+                $paidSubscription = $activeSubscriptions->where('is_trial', false)->first();
+                $subscriptionToKeep = $paidSubscription ?? $activeSubscriptions->first();
                 
-                foreach ($activeSubscriptions->skip(1) as $oldSub) {
+                $this->info("   ✅ KEEP: Subscription ID {$subscriptionToKeep->id} ({$subscriptionToKeep->subscription_code})");
+                $this->line("      Plan: " . ($subscriptionToKeep->subscriptionPlan->name ?? 'N/A'));
+                $this->line("      Is Trial: " . ($subscriptionToKeep->is_trial ? 'Yes' : 'No'));
+                $this->line("      Created: {$subscriptionToKeep->created_at}");
+                
+                foreach ($activeSubscriptions as $oldSub) {
+                    if ($oldSub->id === $subscriptionToKeep->id) {
+                        continue; // Skip the one we're keeping
+                    }
+                    
                     $fixedSubscriptions++;
-                    $this->error("   ❌ MARK AS UPGRADED: Subscription ID {$oldSub->id} ({$oldSub->subscription_code}) - Created: {$oldSub->created_at}");
+                    $this->error("   ❌ MARK AS UPGRADED: Subscription ID {$oldSub->id} ({$oldSub->subscription_code})");
+                    $this->line("      Plan: " . ($oldSub->subscriptionPlan->name ?? 'N/A'));
+                    $this->line("      Is Trial: " . ($oldSub->is_trial ? 'Yes' : 'No'));
+                    $this->line("      Created: {$oldSub->created_at}");
                     
                     if (!$isDryRun) {
                         $oldSub->update([
                             'status' => 'upgraded',
-                            'notes' => ($oldSub->notes ?? '') . ' | Auto-upgraded (cleanup fix) at ' . Carbon::now(),
+                            'notes' => ($oldSub->notes ?? '') . ' | Auto-upgraded (cleanup fix - prioritize paid) at ' . Carbon::now(),
                         ]);
                         $this->line("      → Updated to 'upgraded' status");
                     }
