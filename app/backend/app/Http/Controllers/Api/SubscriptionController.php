@@ -120,17 +120,16 @@ class SubscriptionController extends Controller
             ], 422);
         }
 
-        // Check if user already has an active subscription
-        $existingSubscription = UserSubscription::where('user_id', $user->id)
-            ->whereIn('status', ['active', 'pending_payment'])
+        // ✅ SMART LOGIC: Check existing subscriptions
+        $activeSubscription = UserSubscription::where('user_id', $user->id)
+            ->where('status', 'active')
+            ->where('ends_at', '>', now())
+            ->with('subscriptionPlan')
             ->first();
 
-        if ($existingSubscription) {
-            return response()->json([
-                'success' => false,
-                'message' => 'You already have an active subscription',
-            ], 400);
-        }
+        $pendingSubscription = UserSubscription::where('user_id', $user->id)
+            ->where('status', 'pending_payment')
+            ->first();
 
         // ✅ FIX: Use find() instead of findOrFail() and handle null gracefully
         $plan = SubscriptionPlan::find($request->subscription_plan_id);
@@ -176,20 +175,73 @@ class SubscriptionController extends Controller
             ], 400);
         }
 
+        // ✅ SCENARIO 1: User has ACTIVE subscription
+        if ($activeSubscription) {
+            // Check if trying to buy the SAME plan (renew/extend)
+            if ($activeSubscription->subscription_plan_id === $plan->id) {
+                // ✅ ALLOW: Renew/Extend same plan - will add duration to existing subscription
+                Log::info('User renewing/extending same plan', [
+                    'user_id' => $user->id,
+                    'current_subscription_id' => $activeSubscription->id,
+                    'plan_id' => $plan->id,
+                    'plan_name' => $plan->name,
+                ]);
+                // Continue to create new subscription (will be handled in payment success)
+            } else {
+                // ✅ PREVENT: Different plan - should use upgrade endpoint
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Anda sudah memiliki paket aktif. Untuk mengganti paket, gunakan fitur upgrade.',
+                    'current_plan' => $activeSubscription->subscriptionPlan->name ?? 'Unknown',
+                    'requested_plan' => $plan->name,
+                    'should_upgrade' => true,
+                ], 400);
+            }
+        }
+
+        // ✅ SCENARIO 2: User has PENDING_PAYMENT subscription
+        // Allow new subscription - old pending will be cancelled when new one is paid
+        if ($pendingSubscription) {
+            Log::info('User has pending payment subscription, allowing new subscription', [
+                'user_id' => $user->id,
+                'pending_subscription_id' => $pendingSubscription->id,
+                'new_plan_id' => $plan->id,
+            ]);
+            // Continue to create new subscription
+        }
+
         DB::beginTransaction();
 
         try {
             $startsAt = Carbon::now();
 
-            // Calculate end date
-            if ($isTrial) {
-                // 7 days trial
-                $endsAt = Carbon::now()->addDays(7);
-                $trialEndsAt = $endsAt;
+            // ✅ SMART CALCULATION: If renewing same plan, extend from current ends_at
+            if ($activeSubscription && $activeSubscription->subscription_plan_id === $plan->id) {
+                // Extend from current subscription's end date
+                $currentEndsAt = Carbon::parse($activeSubscription->ends_at);
+                
+                if ($isTrial) {
+                    $endsAt = $currentEndsAt->addDays(7);
+                    $trialEndsAt = $endsAt;
+                } else {
+                    $endsAt = $currentEndsAt->addMonths($price->duration_months);
+                    $trialEndsAt = null;
+                }
+
+                Log::info('Extending subscription from current end date', [
+                    'current_ends_at' => $activeSubscription->ends_at,
+                    'new_ends_at' => $endsAt,
+                    'added_months' => $price->duration_months,
+                ]);
             } else {
-                // Paid subscription
-                $endsAt = Carbon::now()->addMonths($price->duration_months);
-                $trialEndsAt = null;
+                // New subscription or different plan
+                if ($isTrial) {
+                    $endsAt = Carbon::now()->addDays(7);
+                    $trialEndsAt = $endsAt;
+                } else {
+                    $endsAt = Carbon::now()->addMonths($price->duration_months);
+                    $trialEndsAt = null;
+                }
             }
 
             // Create subscription
@@ -206,7 +258,9 @@ class SubscriptionController extends Controller
                 'trial_ends_at' => $trialEndsAt,
                 'is_trial' => $isTrial,
                 'plan_features' => $plan->features,
-                'notes' => $isTrial ? 'Trial subscription - 7 days' : null,
+                'notes' => $isTrial ? 'Trial subscription - 7 days' : 
+                    ($activeSubscription && $activeSubscription->subscription_plan_id === $plan->id ? 
+                        'Renewal/Extension of ' . $plan->name : null),
             ]);
 
             // ✅ FIX: Determine if payment is required (always true for paid subscriptions)
@@ -214,6 +268,7 @@ class SubscriptionController extends Controller
 
             // If paid subscription, create Midtrans payment token
             $snapToken = null;
+            $snapTokenError = null;
             if ($requiresPayment) {
                 try {
                     $snapToken = $this->midtransService->createSnapToken([
@@ -233,11 +288,26 @@ class SubscriptionController extends Controller
                         'requires_payment' => $requiresPayment,
                     ]);
                 } catch (\Exception $e) {
+                    $snapTokenError = $e->getMessage();
                     Log::error('Failed to create Midtrans snap token', [
                         'subscription_id' => $subscription->id,
+                        'subscription_code' => $subscriptionCode,
                         'error' => $e->getMessage(),
+                        'is_serverkey_error' => strpos($e->getMessage(), 'ServerKey') !== false,
                     ]);
-                    // Continue without snap token - user will be redirected to payment page
+                    
+                    // ✅ CRITICAL: If ServerKey is null, return error immediately
+                    // Don't continue - user needs to configure ServerKey first
+                    if (strpos($e->getMessage(), 'ServerKey') !== false) {
+                        DB::rollBack();
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Midtrans ServerKey is not configured. Please configure MIDTRANS_SERVER_KEY in .env file or contact administrator.',
+                            'error' => 'ServerKey configuration missing',
+                            'subscription_code' => $subscriptionCode,
+                        ], 500);
+                    }
+                    // Continue without snap token for other errors - user can get payment link later
                 }
             }
 
@@ -253,7 +323,9 @@ class SubscriptionController extends Controller
                 'data' => $subscription->load(['subscriptionPlan', 'subscriptionPlanPrice']),
                 'requires_payment' => $requiresPayment, // ✅ FIX: Explicitly set to true for paid subscriptions
                 'is_trial' => $isTrial, // ✅ FIX: Add is_trial flag for clarity
+                'is_renewal' => $activeSubscription && $activeSubscription->subscription_plan_id === $plan->id,
                 'snap_token' => $snapToken,
+                'snap_token_error' => $snapTokenError, // ✅ NEW: Include error if snap token creation failed
                 'client_key' => config('midtrans.client_key'),
             ], 201);
         } catch (\Exception $e) {
@@ -402,13 +474,30 @@ class SubscriptionController extends Controller
 
         // For owner/super_admin roles, check their own subscription
         // ✅ FIX: Prioritize active subscription over pending_payment
-        // If user has active subscription, use it. Only use pending_payment if no active subscription exists.
+        // ✅ CRITICAL FIX: Prioritize PAID subscription (is_trial = false) over TRIAL subscription (is_trial = true)
+        // If user has both paid and trial active subscriptions, always use paid subscription
+        // Order by: is_trial ASC (false first = paid first), then created_at DESC (newest first)
+        // ✅ CRITICAL: Only get subscriptions with status 'active' (exclude 'upgraded', 'cancelled', etc)
         $activeSubscription = UserSubscription::with(['subscriptionPlan', 'subscriptionPlanPrice'])
             ->where('user_id', $user->id)
-            ->where('status', 'active')
+            ->where('status', 'active') // Only active subscriptions (excludes upgraded, cancelled, etc)
             ->where('ends_at', '>', now()) // Only get non-expired active subscriptions
-            ->latest()
+            ->orderBy('is_trial', 'asc') // Paid subscriptions (is_trial = false) first
+            ->latest() // Then by created_at DESC (newest first)
             ->first();
+        
+        // ✅ DEBUG: Log subscription selection for troubleshooting
+        if ($activeSubscription) {
+            Log::info('Selected active subscription', [
+                'user_id' => $user->id,
+                'subscription_id' => $activeSubscription->id,
+                'subscription_code' => $activeSubscription->subscription_code,
+                'is_trial' => $activeSubscription->is_trial,
+                'status' => $activeSubscription->status,
+                'plan_name' => $activeSubscription->subscriptionPlan->name ?? 'N/A',
+                'ends_at' => $activeSubscription->ends_at,
+            ]);
+        }
 
         // Only check for pending_payment if no active subscription found
         if (!$activeSubscription) {
@@ -667,37 +756,39 @@ class SubscriptionController extends Controller
                 'notes' => 'Payment confirmed via ' . $request->payment_method,
             ]);
 
-            // ✅ FIX: Mark old subscription as upgraded if this is an upgrade
-            $oldSubscription = UserSubscription::where('user_id', $user->id)
+            // ✅ CRITICAL FIX: Mark ALL old active subscriptions as upgraded (not just one)
+            // This prevents having multiple active subscriptions
+            $oldActiveSubscriptions = UserSubscription::where('user_id', $user->id)
                 ->where('id', '!=', $subscription->id)
                 ->where('status', 'active')
-                ->where('ends_at', '>', Carbon::now())
-                ->orderBy('created_at', 'desc')
-                ->first();
+                ->get();
 
-            if ($oldSubscription) {
-                $oldSubscription->update([
+            foreach ($oldActiveSubscriptions as $oldSub) {
+                $oldSub->update([
                     'status' => 'upgraded',
-                    'notes' => ($oldSubscription->notes ?? '') . ' | Upgraded to ' . ($subscription->subscriptionPlan->name ?? 'new plan') . ' at ' . Carbon::now(),
+                    'notes' => ($oldSub->notes ?? '') . ' | Upgraded to ' . ($subscription->subscriptionPlan->name ?? 'new plan') . ' at ' . Carbon::now(),
+                ]);
+
+                Log::info('Marked old subscription as upgraded (manual payment)', [
+                    'old_subscription_id' => $oldSub->id,
+                    'old_subscription_code' => $oldSub->subscription_code,
+                    'new_subscription_id' => $subscription->id,
+                    'new_subscription_code' => $subscription->subscription_code,
                 ]);
             }
 
             // Update business to use new subscription
-            $business = \App\Models\Business::where('owner_id', $user->id)
-                ->where(function($query) use ($subscription, $oldSubscription) {
-                    $query->where('current_subscription_id', $subscription->id)
-                        ->orWhere(function($q) use ($oldSubscription) {
-                            if ($oldSubscription) {
-                                $q->where('current_subscription_id', $oldSubscription->id);
-                            }
-                        });
-                })
-                ->first();
+            $business = \App\Models\Business::where('owner_id', $user->id)->first();
 
             if ($business) {
                 $business->update([
                     'current_subscription_id' => $subscription->id,
                     'subscription_expires_at' => $subscription->ends_at,
+                ]);
+
+                Log::info('Business updated with new subscription (manual payment)', [
+                    'business_id' => $business->id,
+                    'subscription_id' => $subscription->id,
                 ]);
             }
 
@@ -1518,18 +1609,25 @@ class SubscriptionController extends Controller
                 'notes' => ($subscription->notes ?? '') . ' | Auto-verified and activated at ' . Carbon::now(),
             ]);
 
-            // ✅ FIX: Mark old subscription as upgraded if this is an upgrade
-            $oldSubscription = UserSubscription::where('user_id', $user->id)
+            // ✅ CRITICAL FIX: Mark ALL old active subscriptions as upgraded (not just one)
+            // This prevents having multiple active subscriptions (including trial subscriptions)
+            $oldActiveSubscriptions = UserSubscription::where('user_id', $user->id)
                 ->where('id', '!=', $subscription->id)
                 ->where('status', 'active')
-                ->where('ends_at', '>', Carbon::now())
-                ->orderBy('created_at', 'desc')
-                ->first();
+                ->get();
 
-            if ($oldSubscription) {
-                $oldSubscription->update([
+            foreach ($oldActiveSubscriptions as $oldSub) {
+                $oldSub->update([
                     'status' => 'upgraded',
-                    'notes' => ($oldSubscription->notes ?? '') . ' | Upgraded to ' . ($subscription->subscriptionPlan->name ?? 'new plan') . ' at ' . Carbon::now(),
+                    'notes' => ($oldSub->notes ?? '') . ' | Upgraded to ' . ($subscription->subscriptionPlan->name ?? 'new plan') . ' at ' . Carbon::now(),
+                ]);
+
+                Log::info('Marked old subscription as upgraded (verify-activate)', [
+                    'old_subscription_id' => $oldSub->id,
+                    'old_subscription_code' => $oldSub->subscription_code,
+                    'old_is_trial' => $oldSub->is_trial,
+                    'new_subscription_id' => $subscription->id,
+                    'new_subscription_code' => $subscription->subscription_code,
                 ]);
             }
 

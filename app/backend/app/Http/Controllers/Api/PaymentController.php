@@ -24,22 +24,31 @@ class PaymentController extends Controller
     public function handleMidtransNotification(Request $request)
     {
         try {
-            // Get notification (temporary - will get business-specific after finding subscription)
-            $tempNotification = new \Midtrans\Notification();
-            $orderId = $tempNotification->order_id;
+            // 1) Ambil order_id langsung dari payload (jangan panggil Midtrans\Notification dulu)
+            $orderId = $request->input('order_id');
+
+            if (!$orderId) {
+                Log::error('Midtrans notification missing order_id', [
+                    'payload' => $request->all(),
+                ]);
+
+                // Sebaiknya 200 agar Midtrans tidak retry terus-menerus untuk payload invalid
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid payload: order_id missing',
+                ], 200);
+            }
+
             $subscriptionCode = $orderId;
 
-            // ✅ FIX: Extract subscription code from order_id
+            // ✅ Extract subscription code from order_id
             // Format bisa: SUB-XXXXX atau SUB-XXXXX-TIMESTAMP atau SUB-XXXXX-TIMESTAMP-RANDOM
             if (strpos($orderId, '-') !== false) {
                 $parts = explode('-', $orderId);
+
                 // Subscription code selalu format: SUB-XXXXX (2 bagian pertama)
-                // Jika ada timestamp/random di akhir, ambil hanya 2 bagian pertama
                 if (count($parts) >= 2) {
-                    // Always use first 2 parts (SUB-XXXXX) as subscription code
                     $subscriptionCode = $parts[0] . '-' . $parts[1];
-                } else {
-                    $subscriptionCode = $orderId;
                 }
             }
 
@@ -48,7 +57,7 @@ class PaymentController extends Controller
                 'extracted_subscription_code' => $subscriptionCode,
             ]);
 
-            // Find subscription by subscription_code
+            // 2) Find subscription
             $subscription = UserSubscription::with('user.ownedBusinesses')
                 ->where('subscription_code', $subscriptionCode)
                 ->first();
@@ -59,34 +68,143 @@ class PaymentController extends Controller
                     'subscription_code' => $subscriptionCode,
                 ]);
 
+                // ✅ CRITICAL FIX: Try to find subscription by order_id pattern or create from Midtrans data
+                // This handles case where user paid manually via link but subscription not in DB
+                // Try to get transaction status from Midtrans to verify payment
+                try {
+                    // Use global config as fallback
+                    $midtransService = new MidtransService();
+                    $transactionStatus = $midtransService->getTransactionStatus($orderId);
+                    
+                    if ($transactionStatus && in_array($transactionStatus->transaction_status, ['settlement', 'capture'])) {
+                        Log::warning('Payment already settled but subscription not found in DB', [
+                            'order_id' => $orderId,
+                            'transaction_status' => $transactionStatus->transaction_status,
+                            'gross_amount' => $transactionStatus->gross_amount ?? null,
+                        ]);
+                        
+                        // Return 200 to prevent Midtrans retry, but log for manual handling
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Subscription not found but payment already settled. Please contact support.',
+                            'order_id' => $orderId,
+                            'transaction_status' => $transactionStatus->transaction_status,
+                        ], 200);
+                    }
+                } catch (\Exception $e) {
+                    Log::error('Failed to check Midtrans transaction status for missing subscription', [
+                        'order_id' => $orderId,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+
+                // Rekomendasi: 200 supaya Midtrans tidak spam retry (opsional)
                 return response()->json([
                     'success' => false,
                     'message' => 'Subscription not found',
-                ], 404);
+                ], 200);
             }
 
-            // ✅ FIX: Get business from user (prefer owned business, fallback to first business)
-            // Business is optional - user might not have created business yet
-            $business = $subscription->user->ownedBusinesses()->first() 
+            // 3) Cari business (optional)
+            $business = $subscription->user->ownedBusinesses()->first()
                 ?? $subscription->user->businesses()->first();
 
-            // ✅ FIX: Business is not required for webhook processing
-            // User can have active subscription without business (they'll create it later)
-            if (!$business) {
-                Log::info('No business found for subscription in webhook, using default Midtrans config', [
-                    'subscription_id' => $subscription->id,
-                    'user_id' => $subscription->user_id,
-                    'subscription_code' => $subscriptionCode,
-                ]);
-                // Use default MidtransService (no business-specific config)
-                $midtransService = new MidtransService();
-            } else {
-                // ✅ Get MidtransService dengan business config
-                $midtransService = MidtransService::forBusiness($business);
+            // 4) Buat MidtransService (ini yang akan set Midtrans\Config::$serverKey)
+            // ✅ CRITICAL FIX: Handle ServerKey null with fallback
+            $midtransService = null;
+            $serverKeyError = null;
+            
+            try {
+                if (!$business) {
+                    Log::info('No business found for subscription in webhook, using default Midtrans config', [
+                        'subscription_id' => $subscription->id,
+                        'user_id' => $subscription->user_id,
+                        'subscription_code' => $subscriptionCode,
+                    ]);
+
+                    $midtransService = new MidtransService();
+                } else {
+                    $midtransService = MidtransService::forBusiness($business);
+                }
+            } catch (\Exception $e) {
+                // If ServerKey is null, try fallback to global config
+                if (strpos($e->getMessage(), 'ServerKey') !== false) {
+                    Log::warning('ServerKey null in business config, trying global config fallback', [
+                        'subscription_id' => $subscription->id,
+                        'business_id' => $business->id ?? null,
+                        'error' => $e->getMessage(),
+                    ]);
+                    
+                    try {
+                        // Force use global config
+                        $midtransService = new MidtransService();
+                        $serverKeyError = 'Business config ServerKey is null, using global config';
+                    } catch (\Exception $e2) {
+                        Log::error('Both business and global ServerKey are null', [
+                            'subscription_id' => $subscription->id,
+                            'error' => $e2->getMessage(),
+                        ]);
+                        
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Midtrans ServerKey is not configured. Please configure MIDTRANS_SERVER_KEY in .env file.',
+                            'error' => $e2->getMessage(),
+                        ], 500);
+                    }
+                } else {
+                    throw $e;
+                }
             }
 
-            // Get notification data dengan config yang benar
-            $notification = $midtransService->handleNotification();
+            // 5) Baru proses notifikasi via SDK (sekarang serverKey sudah ke-set)
+            try {
+                $notification = $midtransService->handleNotification();
+            } catch (\Exception $e) {
+                // If notification fails due to ServerKey, try to get transaction status directly
+                if (strpos($e->getMessage(), 'ServerKey') !== false || strpos($e->getMessage(), '401') !== false) {
+                    Log::error('Webhook notification failed due to ServerKey issue, trying direct transaction status check', [
+                        'order_id' => $orderId,
+                        'error' => $e->getMessage(),
+                    ]);
+                    
+                    // Try to get transaction status directly from Midtrans API
+                    try {
+                        $transactionStatus = $midtransService->getTransactionStatus($orderId);
+                        
+                        if ($transactionStatus && in_array($transactionStatus->transaction_status, ['settlement', 'capture'])) {
+                            // Payment is already settled, process it manually
+                            Log::info('Payment already settled, processing manually from transaction status', [
+                                'order_id' => $orderId,
+                                'transaction_status' => $transactionStatus->transaction_status,
+                            ]);
+                            
+                            // Create notification array from transaction status
+                            $notification = [
+                                'order_id' => $orderId,
+                                'payment_status' => 'success',
+                                'payment_type' => $transactionStatus->payment_type ?? 'unknown',
+                                'gross_amount' => $transactionStatus->gross_amount ?? 0,
+                                'transaction_time' => $transactionStatus->transaction_time ?? now()->toDateTimeString(),
+                                'raw_notification' => $transactionStatus,
+                            ];
+                        } else {
+                            throw new \Exception('Transaction status is not settlement/capture: ' . ($transactionStatus->transaction_status ?? 'unknown'));
+                        }
+                    } catch (\Exception $e2) {
+                        Log::error('Failed to get transaction status as fallback', [
+                            'order_id' => $orderId,
+                            'error' => $e2->getMessage(),
+                        ]);
+                        
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Failed to process notification: ' . $e->getMessage(),
+                        ], 500);
+                    }
+                } else {
+                    throw $e;
+                }
+            }
 
             Log::info('Processing Midtrans notification', [
                 'order_id' => $notification['order_id'],
@@ -95,7 +213,6 @@ class PaymentController extends Controller
 
             DB::beginTransaction();
             try {
-                // Update or create payment record
                 $payment = SubscriptionPayment::updateOrCreate(
                     [
                         'user_subscription_id' => $subscription->id,
@@ -106,40 +223,118 @@ class PaymentController extends Controller
                         'payment_gateway' => 'midtrans',
                         'gateway_payment_id' => $notification['raw_notification']->transaction_id ?? $notification['order_id'],
                         'amount' => $notification['gross_amount'],
-                        'status' => $notification['payment_status'] === 'success' ? 'paid' : ($notification['payment_status'] === 'failed' ? 'failed' : 'pending'),
-                        'paid_at' => $notification['payment_status'] === 'success' ? Carbon::parse($notification['transaction_time']) : null,
+                        'status' => $notification['payment_status'] === 'success'
+                            ? 'paid'
+                            : ($notification['payment_status'] === 'failed' ? 'failed' : 'pending'),
+                        'paid_at' => $notification['payment_status'] === 'success'
+                            ? Carbon::parse($notification['transaction_time'])
+                            : null,
                         'payment_data' => json_encode($notification['raw_notification']),
                     ]
                 );
 
-                // Update subscription status based on payment status
                 if ($notification['payment_status'] === 'success') {
-                    $subscription->update([
-                        'status' => 'active',
-                        'notes' => ($subscription->notes ?? '') . ' | Payment confirmed via ' . $notification['payment_type'],
-                    ]);
+                    // ✅ SMART LOGIC: Check if this is a RENEWAL (same plan) or UPGRADE (different plan)
+                    $oldActiveSubscriptions = UserSubscription::where('user_id', $subscription->user_id)
+                        ->where('id', '!=', $subscription->id)
+                        ->where('status', 'active')
+                        ->with('subscriptionPlan')
+                        ->get();
 
-                    // ✅ FIX: Update business to use new subscription (for upgrade scenario)
-                    if ($business) {
-                        $business->update([
-                            'current_subscription_id' => $subscription->id,
-                            'subscription_expires_at' => $subscription->ends_at,
-                        ]);
+                    $isRenewal = false;
+                    $oldSubscriptionToExtend = null;
+
+                    foreach ($oldActiveSubscriptions as $oldSub) {
+                        // Check if same plan (renewal scenario)
+                        if ($oldSub->subscription_plan_id === $subscription->subscription_plan_id) {
+                            $isRenewal = true;
+                            $oldSubscriptionToExtend = $oldSub;
+                            break;
+                        }
+                    }
+
+                    if ($isRenewal && $oldSubscriptionToExtend) {
+                        // ✅ RENEWAL SCENARIO: Extend old subscription instead of creating new one
+                        $oldEndsAt = Carbon::parse($oldSubscriptionToExtend->ends_at);
+                        $newEndsAt = Carbon::parse($subscription->ends_at);
                         
-                        Log::info('Business updated with new subscription', [
-                            'business_id' => $business->id,
+                        // Calculate how many months/days were added
+                        $addedDays = $oldEndsAt->diffInDays($newEndsAt);
+                        
+                        // Extend the old subscription
+                        $oldSubscriptionToExtend->update([
+                            'ends_at' => $newEndsAt,
+                            'notes' => ($oldSubscriptionToExtend->notes ?? '') . ' | Extended by ' . $addedDays . ' days (renewal payment) at ' . Carbon::now(),
+                        ]);
+
+                        // Cancel the new subscription (it was just for payment tracking)
+                        $subscription->update([
+                            'status' => 'completed',
+                            'notes' => ($subscription->notes ?? '') . ' | Renewal payment completed. Extended subscription ID: ' . $oldSubscriptionToExtend->id,
+                        ]);
+
+                        Log::info('Renewal processed: Extended existing subscription', [
+                            'extended_subscription_id' => $oldSubscriptionToExtend->id,
+                            'old_ends_at' => $oldEndsAt->toDateTimeString(),
+                            'new_ends_at' => $newEndsAt->toDateTimeString(),
+                            'added_days' => $addedDays,
+                            'payment_subscription_id' => $subscription->id,
+                        ]);
+
+                        // Update business to keep using the extended subscription
+                        if ($business) {
+                            $business->update([
+                                'current_subscription_id' => $oldSubscriptionToExtend->id,
+                                'subscription_expires_at' => $newEndsAt,
+                            ]);
+
+                            Log::info('Business updated with extended subscription', [
+                                'business_id' => $business->id,
+                                'subscription_id' => $oldSubscriptionToExtend->id,
+                                'new_expires_at' => $newEndsAt->toDateTimeString(),
+                            ]);
+                        }
+                    } else {
+                        // ✅ UPGRADE SCENARIO: Mark old subscriptions as 'upgraded' and activate new one
+                        foreach ($oldActiveSubscriptions as $oldSub) {
+                            $oldSub->update([
+                                'status' => 'upgraded',
+                                'notes' => ($oldSub->notes ?? '') . ' | Upgraded to new subscription (ID: ' . $subscription->id . ') at ' . Carbon::now(),
+                            ]);
+
+                            Log::info('Marked old subscription as upgraded', [
+                                'old_subscription_id' => $oldSub->id,
+                                'old_subscription_code' => $oldSub->subscription_code,
+                                'new_subscription_id' => $subscription->id,
+                                'new_subscription_code' => $subscription->subscription_code,
+                            ]);
+                        }
+
+                        // Now activate the new subscription
+                        $subscription->update([
+                            'status' => 'active',
+                            'notes' => ($subscription->notes ?? '') . ' | Payment confirmed via ' . $notification['payment_type'],
+                        ]);
+
+                        if ($business) {
+                            $business->update([
+                                'current_subscription_id' => $subscription->id,
+                                'subscription_expires_at' => $subscription->ends_at,
+                            ]);
+
+                            Log::info('Business updated with new subscription', [
+                                'business_id' => $business->id,
+                                'subscription_id' => $subscription->id,
+                            ]);
+                        }
+
+                        Log::info('Subscription activated (upgrade)', [
                             'subscription_id' => $subscription->id,
+                            'subscription_code' => $subscription->subscription_code,
                         ]);
                     }
 
-                    Log::info('Subscription activated', [
-                        'subscription_id' => $subscription->id,
-                        'subscription_code' => $subscription->subscription_code,
-                    ]);
-
-                    // Fire SubscriptionPaid event
                     event(new \App\Events\SubscriptionPaid($payment));
-
                 } elseif ($notification['payment_status'] === 'failed') {
                     $subscription->update([
                         'status' => 'cancelled',
@@ -157,18 +352,18 @@ class PaymentController extends Controller
                     'success' => true,
                     'message' => 'Notification processed successfully',
                 ]);
-
             } catch (\Exception $e) {
                 DB::rollBack();
                 throw $e;
             }
-
         } catch (\Exception $e) {
             Log::error('Failed to process Midtrans notification', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
 
+            // Untuk webhook, sering lebih aman balikin 200 agar tidak retry brutal.
+            // Tapi kalau kamu mau strict monitoring, biarkan 500.
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to process notification',

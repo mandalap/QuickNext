@@ -36,6 +36,16 @@ class MidtransService
             ];
         }
 
+        // ✅ CRITICAL: Validate ServerKey before setting
+        if (empty($this->config['server_key']) || $this->config['server_key'] === null) {
+            Log::error('Midtrans ServerKey is null or empty', [
+                'config_source' => $config ? 'custom' : 'global',
+                'has_server_key' => !empty($this->config['server_key']),
+            ]);
+            
+            throw new \Exception('Midtrans ServerKey is not configured. Please set MIDTRANS_SERVER_KEY in .env file or configure it in business/outlet settings.');
+        }
+
         // Set Midtrans configuration
         Config::$serverKey = $this->config['server_key'];
         Config::$isProduction = $this->config['is_production'];
@@ -98,6 +108,15 @@ class MidtransService
     public function createSnapToken($params)
     {
         try {
+            // ✅ CRITICAL: Validate ServerKey before creating snap token
+            if (empty($this->config['server_key']) || $this->config['server_key'] === null) {
+                Log::error('Cannot create Snap token: ServerKey is null', [
+                    'order_id' => $params['order_id'] ?? null,
+                ]);
+                
+                throw new \Exception('Midtrans ServerKey is not configured. Please set MIDTRANS_SERVER_KEY in .env file or configure it in business/outlet settings.');
+            }
+
             $transaction_details = [
                 'order_id' => $params['order_id'],
                 'gross_amount' => $params['gross_amount'],
