@@ -74,12 +74,22 @@ class SocialAuthController extends Controller
 
             // Use database transaction to prevent race condition
             $user = \DB::transaction(function () use ($googleId, $googleEmail, $googleUser) {
-                // First, try to find user by google_id (most specific)
-                $user = User::where('google_id', $googleId)->first();
+                // First, try to find user by google_id (most specific) - include soft-deleted
+                $user = User::withTrashed()->where('google_id', $googleId)->first();
 
-                // If not found by google_id, try by email (case-insensitive)
+                // If not found by google_id, try by email (case-insensitive) - include soft-deleted
                 if (!$user) {
-                    $user = User::whereRaw('LOWER(email) = ?', [$googleEmail])->first();
+                    $user = User::withTrashed()->whereRaw('LOWER(email) = ?', [$googleEmail])->first();
+                }
+
+                // If user is soft-deleted, restore it
+                if ($user && $user->trashed()) {
+                    Log::info('Restoring soft-deleted user for OAuth', [
+                        'user_id' => $user->id,
+                        'email' => $user->email,
+                        'google_id' => $googleId
+                    ]);
+                    $user->restore();
                 }
 
                 if (!$user) {
