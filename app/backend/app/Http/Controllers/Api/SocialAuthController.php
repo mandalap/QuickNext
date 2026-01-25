@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\URL;
 use Laravel\Sanctum\PersonalAccessTokenResult;
@@ -68,32 +69,74 @@ class SocialAuthController extends Controller
             }
 
             $googleUser = Socialite::driver('google')->stateless()->user();
+            $googleId = $googleUser->getId();
+            $googleEmail = strtolower(trim($googleUser->getEmail()));
 
-            $user = User::where('google_id', $googleUser->getId())
-                ->orWhere('email', $googleUser->getEmail())
-                ->first();
+            // Use database transaction to prevent race condition
+            $user = \DB::transaction(function () use ($googleId, $googleEmail, $googleUser) {
+                // First, try to find user by google_id (most specific)
+                $user = User::where('google_id', $googleId)->first();
 
-            if (!$user) {
-                $user = User::create([
-                    'name' => $googleUser->getName() ?? ($googleUser->user['given_name'] ?? 'User'),
-                    'email' => $googleUser->getEmail(),
-                    'google_id' => $googleUser->getId(),
-                    'password' => bcrypt(str()->random(32)),
-                    'role' => 'owner',
-                    'email_verified_at' => now(),
-                ]);
-            } else {
-                // Link google_id if not set and email matches
-                if (!$user->google_id) {
-                    $user->google_id = $googleUser->getId();
-                    $user->save();
+                // If not found by google_id, try by email (case-insensitive)
+                if (!$user) {
+                    $user = User::whereRaw('LOWER(email) = ?', [$googleEmail])->first();
                 }
-                // Mark verified
-                if (!$user->email_verified_at) {
-                    $user->email_verified_at = now();
-                    $user->save();
+
+                if (!$user) {
+                    // User doesn't exist, create new one
+                    // Use firstOrCreate to handle potential race condition
+                    try {
+                        $user = User::firstOrCreate(
+                            ['email' => $googleEmail],
+                            [
+                                'name' => $googleUser->getName() ?? ($googleUser->user['given_name'] ?? 'User'),
+                                'google_id' => $googleId,
+                                'password' => bcrypt(str()->random(32)),
+                                'role' => 'owner',
+                                'email_verified_at' => now(),
+                            ]
+                        );
+                    } catch (\Illuminate\Database\QueryException $e) {
+                        // Handle duplicate entry error (race condition)
+                        if ($e->getCode() == 23000 || str_contains($e->getMessage(), 'Duplicate entry')) {
+                            Log::warning('Duplicate entry during OAuth user creation, retrying...', [
+                                'email' => $googleEmail,
+                                'google_id' => $googleId
+                            ]);
+                            // Retry finding the user
+                            $user = User::whereRaw('LOWER(email) = ?', [$googleEmail])->first();
+                            if (!$user) {
+                                throw new \Exception('Gagal membuat akun. Silakan coba lagi.');
+                            }
+                        } else {
+                            throw $e;
+                        }
+                    }
+                } else {
+                    // User exists, update google_id if not set
+                    $needsUpdate = false;
+                    if (!$user->google_id) {
+                        $user->google_id = $googleId;
+                        $needsUpdate = true;
+                    }
+                    // Mark email as verified if not already
+                    if (!$user->email_verified_at) {
+                        $user->email_verified_at = now();
+                        $needsUpdate = true;
+                    }
+                    // Update name if empty or different
+                    $googleName = $googleUser->getName() ?? ($googleUser->user['given_name'] ?? null);
+                    if ($googleName && ($user->name === 'User' || empty($user->name))) {
+                        $user->name = $googleName;
+                        $needsUpdate = true;
+                    }
+                    if ($needsUpdate) {
+                        $user->save();
+                    }
                 }
-            }
+
+                return $user;
+            });
 
             /** @var PersonalAccessTokenResult $token */
             $token = $user->createToken('API Token');
