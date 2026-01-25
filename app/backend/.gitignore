@@ -3,6 +3,7 @@
 .env
 .env.backup
 .env.production
+.env.production.patch
 .phpactor.json
 .phpunit.result.cache
 /.fleet
@@ -22,3 +23,21 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Backup files
+*.bak
+*.backup
+*.bak.*
+*.patch
+*_bak
+*_backup
+
+# Temporary files
+activeSubscription
+adad
+d
+exitl
+is_active
+' => 'active',
+criptions')->get();
+er->activeSubscription;
