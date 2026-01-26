@@ -31,21 +31,49 @@ echo ""
 echo -e "${YELLOW}Step 2: Checking environment variables...${NC}"
 cd "$BERANDA_DIR"
 
-if [ -f ".env.local" ]; then
+# Next.js priority: .env.production > .env.local > .env
+# For production, use .env.production
+SITE_URL=""
+
+# Check .env.production first (recommended for production)
+if [ -f ".env.production" ]; then
+    if grep -q "NEXT_PUBLIC_SITE_URL" .env.production; then
+        SITE_URL=$(grep "NEXT_PUBLIC_SITE_URL" .env.production | cut -d '=' -f2 | tr -d '"' | tr -d "'" | tr -d ' ')
+        echo -e "${GREEN}✅ NEXT_PUBLIC_SITE_URL found in .env.production: $SITE_URL${NC}"
+    fi
+fi
+
+# Check .env.local as fallback
+if [ -z "$SITE_URL" ] && [ -f ".env.local" ]; then
     if grep -q "NEXT_PUBLIC_SITE_URL" .env.local; then
         SITE_URL=$(grep "NEXT_PUBLIC_SITE_URL" .env.local | cut -d '=' -f2 | tr -d '"' | tr -d "'" | tr -d ' ')
-        echo -e "${GREEN}✅ NEXT_PUBLIC_SITE_URL found: $SITE_URL${NC}"
-    else
-        echo -e "${YELLOW}⚠️  NEXT_PUBLIC_SITE_URL not found in .env.local${NC}"
-        read -p "Enter your site URL (e.g., https://www.quickkasir.com): " SITE_URL
-        echo "NEXT_PUBLIC_SITE_URL=$SITE_URL" >> .env.local
-        echo -e "${GREEN}✅ Added NEXT_PUBLIC_SITE_URL to .env.local${NC}"
+        echo -e "${GREEN}✅ NEXT_PUBLIC_SITE_URL found in .env.local: $SITE_URL${NC}"
     fi
-else
-    echo -e "${YELLOW}⚠️  .env.local not found${NC}"
+fi
+
+# Check .env as last fallback
+if [ -z "$SITE_URL" ] && [ -f ".env" ]; then
+    if grep -q "NEXT_PUBLIC_SITE_URL" .env; then
+        SITE_URL=$(grep "NEXT_PUBLIC_SITE_URL" .env | cut -d '=' -f2 | tr -d '"' | tr -d "'" | tr -d ' ')
+        echo -e "${GREEN}✅ NEXT_PUBLIC_SITE_URL found in .env: $SITE_URL${NC}"
+    fi
+fi
+
+# If still not found, ask user
+if [ -z "$SITE_URL" ]; then
+    echo -e "${YELLOW}⚠️  NEXT_PUBLIC_SITE_URL not found in any .env file${NC}"
     read -p "Enter your site URL (e.g., https://www.quickkasir.com): " SITE_URL
-    echo "NEXT_PUBLIC_SITE_URL=$SITE_URL" > .env.local
-    echo -e "${GREEN}✅ Created .env.local with NEXT_PUBLIC_SITE_URL${NC}"
+    
+    # Create .env.production for production (recommended)
+    if [ ! -f ".env.production" ]; then
+        echo "NEXT_PUBLIC_SITE_URL=$SITE_URL" > .env.production
+        echo -e "${GREEN}✅ Created .env.production with NEXT_PUBLIC_SITE_URL${NC}"
+    else
+        if ! grep -q "NEXT_PUBLIC_SITE_URL" .env.production; then
+            echo "NEXT_PUBLIC_SITE_URL=$SITE_URL" >> .env.production
+            echo -e "${GREEN}✅ Added NEXT_PUBLIC_SITE_URL to .env.production${NC}"
+        fi
+    fi
 fi
 echo ""
 
