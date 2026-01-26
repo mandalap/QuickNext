@@ -50,17 +50,21 @@ echo ""
 
 # Step 4: Check for CORS headers in static assets location
 echo -e "${YELLOW}Step 3: Checking for CORS headers in static assets location...${NC}"
-CORS_FOUND=$(sudo grep -c "Access-Control-Allow-Origin.*admin.quickkasir.com" "$NGINX_CONFIG" || echo "0")
-STATIC_LOCATION=$(sudo grep -c "location ~\*.*\\.(woff2?|woff|ttf|eot|js|css)" "$NGINX_CONFIG" || echo "0")
+CORS_FOUND=$(sudo grep -c "Access-Control-Allow-Origin.*admin.quickkasir.com" "$NGINX_CONFIG" 2>/dev/null | tr -d '\n' || echo "0")
+STATIC_LOCATION=$(sudo grep -c "location ~\*.*\\.(woff2?|woff|ttf|eot|js|css)" "$NGINX_CONFIG" 2>/dev/null | tr -d '\n' || echo "0")
 
-if [ "$CORS_FOUND" -gt 0 ]; then
+# Convert to integer (handle empty or multi-line output)
+CORS_FOUND=${CORS_FOUND:-0}
+STATIC_LOCATION=${STATIC_LOCATION:-0}
+
+if [ "$CORS_FOUND" -gt 0 ] 2>/dev/null; then
     echo -e "${GREEN}✅ Found CORS headers for admin.quickkasir.com ($CORS_FOUND occurrences)${NC}"
 else
     echo -e "${RED}❌ No CORS headers found for admin.quickkasir.com${NC}"
     echo -e "${YELLOW}   You need to add CORS headers to the Nginx config${NC}"
 fi
 
-if [ "$STATIC_LOCATION" -gt 0 ]; then
+if [ "$STATIC_LOCATION" -gt 0 ] 2>/dev/null; then
     echo -e "${GREEN}✅ Found static assets location block ($STATIC_LOCATION occurrences)${NC}"
 else
     echo -e "${YELLOW}⚠️  No static assets location block found${NC}"
@@ -114,7 +118,7 @@ echo ""
 echo -e "${BLUE}========================================${NC}"
 echo -e "${YELLOW}📋 Summary:${NC}"
 echo -e "${BLUE}========================================${NC}"
-if [ "$CORS_FOUND" -gt 0 ] && [ -n "$CORS_HEADER" ]; then
+if [ "$CORS_FOUND" -gt 0 ] 2>/dev/null && [ -n "$CORS_HEADER" ]; then
     echo -e "${GREEN}✅ CORS configuration looks good!${NC}"
     echo "   - CORS headers found in config"
     echo "   - CORS headers present in HTTP response"
@@ -123,7 +127,7 @@ if [ "$CORS_FOUND" -gt 0 ] && [ -n "$CORS_HEADER" ]; then
     echo "  1. Clear browser cache (Ctrl+Shift+Delete)"
     echo "  2. Hard refresh (Ctrl+F5)"
     echo "  3. Check browser console for specific errors"
-elif [ "$CORS_FOUND" -gt 0 ] && [ -z "$CORS_HEADER" ]; then
+elif [ "$CORS_FOUND" -gt 0 ] 2>/dev/null && [ -z "$CORS_HEADER" ]; then
     echo -e "${YELLOW}⚠️  CORS headers in config but not in response${NC}"
     echo "   - CORS headers found in config file"
     echo "   - But not present in HTTP response"
