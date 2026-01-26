@@ -4,6 +4,9 @@ namespace App\Filament\Resources\UserResource\Pages;
 
 use App\Filament\Resources\UserResource;
 use Filament\Actions;
+use Filament\Actions\DeleteAction;
+use Filament\Actions\ForceDeleteAction;
+use Filament\Actions\RestoreAction;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Notifications\Notification;
@@ -106,8 +109,19 @@ class EditUser extends EditRecord
                 ->requiresConfirmation()
                 ->modalHeading('Ubah Password')
                 ->modalDescription('Masukkan password baru untuk pengguna ini.')
-                ->modalSubmitActionLabel('Simpan Password'),
-            Actions\DeleteAction::make(),
+                ->modalSubmitActionLabel('Simpan Password')
+                ->visible(fn () => !$this->record->trashed()),
+            DeleteAction::make()
+                ->visible(fn () => !$this->record->trashed()),
+            RestoreAction::make()
+                ->visible(fn () => $this->record->trashed()),
+            ForceDeleteAction::make()
+                ->visible(fn () => $this->record->trashed())
+                ->requiresConfirmation()
+                ->modalHeading('Hapus Permanen')
+                ->modalDescription('Apakah Anda yakin ingin menghapus pengguna ini secara permanen? Tindakan ini tidak dapat dibatalkan dan akan menghapus semua data terkait.')
+                ->modalSubmitActionLabel('Ya, Hapus Permanen')
+                ->color('danger'),
         ];
     }
 

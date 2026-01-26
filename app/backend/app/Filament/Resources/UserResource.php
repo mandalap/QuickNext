@@ -12,6 +12,7 @@ use Filament\Schemas\Components\Section as SchemaSection;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Filament\Tables\Filters\TrashedFilter;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
 
@@ -208,6 +209,12 @@ class UserResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                TrashedFilter::make()
+                    ->label('Status Hapus')
+                    ->placeholder('Semua')
+                    ->trueLabel('Terhapus')
+                    ->falseLabel('Aktif'),
+
                 Tables\Filters\SelectFilter::make('role')
                     ->label('Role')
                     ->options([
@@ -285,12 +292,30 @@ class UserResource extends Resource
                     ->requiresConfirmation()
                     ->modalHeading('Reset Password')
                     ->modalDescription('Masukkan password baru untuk pengguna ini. Password lama akan diganti.')
-                    ->modalSubmitActionLabel('Reset Password'),
-                Actions\DeleteAction::make(),
+                    ->modalSubmitActionLabel('Reset Password')
+                    ->visible(fn ($record) => !$record->trashed()),
+                Actions\DeleteAction::make()
+                    ->visible(fn ($record) => !$record->trashed()),
+                Actions\RestoreAction::make()
+                    ->visible(fn ($record) => $record->trashed()),
+                Actions\ForceDeleteAction::make()
+                    ->visible(fn ($record) => $record->trashed())
+                    ->requiresConfirmation()
+                    ->modalHeading('Hapus Permanen')
+                    ->modalDescription('Apakah Anda yakin ingin menghapus pengguna ini secara permanen? Tindakan ini tidak dapat dibatalkan dan akan menghapus semua data terkait.')
+                    ->modalSubmitActionLabel('Ya, Hapus Permanen')
+                    ->color('danger'),
             ])
             ->bulkActions([
                 Actions\BulkActionGroup::make([
                     Actions\DeleteBulkAction::make(),
+                    Actions\RestoreBulkAction::make(),
+                    Actions\ForceDeleteBulkAction::make()
+                        ->requiresConfirmation()
+                        ->modalHeading('Hapus Permanen')
+                        ->modalDescription('Apakah Anda yakin ingin menghapus pengguna yang dipilih secara permanen? Tindakan ini tidak dapat dibatalkan.')
+                        ->modalSubmitActionLabel('Ya, Hapus Permanen')
+                        ->color('danger'),
                     Actions\BulkAction::make('activate')
                         ->label('Aktifkan')
                         ->icon('heroicon-o-check-circle')
