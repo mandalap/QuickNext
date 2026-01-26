@@ -16,6 +16,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->api(prepend: [
             \App\Http\Middleware\Cors::class,
         ]);
+        
+        // Add CORS middleware to web routes for static assets (fonts, js, css)
+        $middleware->web(append: [
+            \App\Http\Middleware\Cors::class,
+        ]);
 
         // Register middleware aliases
         $middleware->alias([
