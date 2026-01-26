@@ -20,8 +20,8 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 
 
-const API_BASE_URL =
-  process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
+// Use apiClient for consistent API calls
+import apiClient from '../../utils/apiClient';
 
 const registerSchema = z
   .object({
@@ -87,12 +87,10 @@ const Register = () => {
 
     setSendingOTP(true);
     try {
-      const response = await axios.post(
-        `${API_BASE_URL}/api/whatsapp/send-otp`,
-        {
-          phone: phoneToVerify.trim(),
-        }
-      );
+      // ✅ FIX: Use apiClient instead of hardcoded URL to avoid /api/api/ duplication
+      const response = await apiClient.post('/whatsapp/send-otp', {
+        phone: phoneToVerify.trim(),
+      });
 
       if (response.data.success) {
         setOtpSent(true);
@@ -127,13 +125,11 @@ const Register = () => {
 
     setVerifyingOTP(true);
     try {
-      const response = await axios.post(
-        `${API_BASE_URL}/api/whatsapp/verify-otp`,
-        {
-          phone: phoneToVerify.trim(),
-          code: otpCode.trim(),
-        }
-      );
+      // ✅ FIX: Use apiClient instead of hardcoded URL to avoid /api/api/ duplication
+      const response = await apiClient.post('/whatsapp/verify-otp', {
+        phone: phoneToVerify.trim(),
+        code: otpCode.trim(),
+      });
 
       if (response.data.success) {
         setOtpVerified(true);
