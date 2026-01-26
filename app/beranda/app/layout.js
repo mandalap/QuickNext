@@ -82,8 +82,7 @@ export const metadata = {
     shortcut: '/logo-qk.png',
   },
   verification: {
-    // Add your verification codes here when available
-    // google: 'your-google-verification-code',
+    google: '0SbxrfLo5YxuQali4sbzU-sdSKfdn1qKx024ZvL6ZOQ', // ✅ Google Search Console verification
     // yandex: 'your-yandex-verification-code',
     // yahoo: 'your-yahoo-verification-code',
   },
