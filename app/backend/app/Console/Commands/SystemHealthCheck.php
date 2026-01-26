@@ -9,9 +9,7 @@ use Illuminate\Support\Facades\Log;
 
 class SystemHealthCheck extends Command
 {
-    protected $signature = 'system:health-check 
-                            {--detailed : Show detailed output}
-                            {--alert : Send alert on failure}';
+    protected $signature = 'system:health-check {--detailed : Show detailed output} {--alert : Send alert on failure}';
 
     protected $description = 'Check QuickKasir system health (DB, Redis, Storage, Disk)';
 
