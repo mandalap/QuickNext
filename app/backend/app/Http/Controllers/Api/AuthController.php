@@ -1640,6 +1640,25 @@ class AuthController extends Controller
         // Parse response
         $responseData = json_decode($response, true);
         
+        // ✅ FIX: Better handling for WABlitz response format
+        // WABlitz returns: {"status":true,"msg":"Message sent successfully!"} or {"status":false,"msg":"Failed to send message!"}
+        $statusValue = $responseData['status'] ?? null;
+        $msgValue = $responseData['msg'] ?? $responseData['message'] ?? null;
+        
+        // Check if response indicates success
+        $isSuccess = false;
+        if (is_bool($statusValue) && $statusValue === true) {
+            // WABlitz returns status: true (boolean) for success
+            $isSuccess = true;
+        } elseif (is_string($statusValue) && strtolower(trim($statusValue)) === 'success') {
+            $isSuccess = true;
+        } elseif (isset($responseData['success']) && $responseData['success']) {
+            $isSuccess = true;
+        } elseif ($httpCode >= 200 && $httpCode < 300 && !isset($responseData['status'])) {
+            // If HTTP 200-299 and no status field, assume success
+            $isSuccess = true;
+        }
+        
         if ($httpCode < 200 || $httpCode >= 300) {
             Log::error('WhatsApp OTP API Error', [
                 'http_code' => $httpCode,
@@ -1650,7 +1669,9 @@ class AuthController extends Controller
             ]);
             
             $errorMessage = 'Gagal mengirim OTP';
-            if (isset($responseData['message'])) {
+            if ($msgValue) {
+                $errorMessage = $msgValue;
+            } elseif (isset($responseData['message'])) {
                 $errorMessage = $responseData['message'];
             } elseif (isset($responseData['error'])) {
                 $errorMessage = $responseData['error'];
@@ -1661,22 +1682,15 @@ class AuthController extends Controller
             throw new \Exception($errorMessage);
         }
 
-        // Check response for success indicators
-        $isSuccess = false;
-        if (isset($responseData['success']) && $responseData['success']) {
-            $isSuccess = true;
-        } elseif (isset($responseData['status']) && in_array(strtolower($responseData['status']), ['success', 'sent', 'ok'])) {
-            $isSuccess = true;
-        } elseif ($httpCode >= 200 && $httpCode < 300) {
-            $isSuccess = true;
-        }
-
+        // Check if response indicates failure even with HTTP 200
         if (!$isSuccess) {
-            $errorMessage = $responseData['message'] ?? $responseData['error'] ?? 'Unknown error';
+            $errorMessage = $msgValue ?? $responseData['message'] ?? $responseData['error'] ?? 'Unknown error';
             Log::error('WhatsApp OTP failed', [
                 'response' => $response,
                 'phone' => $phone,
                 'http_code' => $httpCode,
+                'status' => $statusValue,
+                'provider' => $token->provider ?? 'unknown',
             ]);
             throw new \Exception("Gagal mengirim OTP: {$errorMessage}");
         }
