@@ -162,6 +162,8 @@ apiClient.interceptors.request.use(
       '/email/verify',
       '/subscriptions/plans',
       '/refresh-token', // Allow refresh token endpoint
+      '/whatsapp/send-otp', // ✅ FIX: Allow WhatsApp OTP endpoint (public, no auth required)
+      '/whatsapp/verify-otp', // ✅ FIX: Allow WhatsApp OTP verification endpoint (public, no auth required)
     ];
     const isPublicEndpoint = publicEndpoints.some(ep =>
       config.url?.includes(ep)
