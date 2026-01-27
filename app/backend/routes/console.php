@@ -41,6 +41,7 @@ Schedule::command('check:user-subscriptions')
     ->description('Check and update user subscription status')
     ->withoutOverlapping()
     ->runInBackground()
+    ->emailOutputOnFailure(env('ADMIN_EMAIL', 'admin@quickkasir.com'))
     ->appendOutputTo(storage_path('logs/subscription-check.log'));
 
 // 3. Fix invalid subscriptions daily at 2:00 AM
@@ -49,6 +50,7 @@ Schedule::command('subscription:fix-invalid')
     ->timezone('Asia/Jakarta')
     ->description('Fix invalid subscriptions')
     ->withoutOverlapping()
+    ->emailOutputOnFailure(env('ADMIN_EMAIL', 'admin@quickkasir.com'))
     ->appendOutputTo(storage_path('logs/fix-subscriptions.log'));
 
 // ============================================================
@@ -67,6 +69,7 @@ Schedule::command('sanctum:prune-expired --hours=168')
     ->dailyAt('03:00')
     ->timezone('Asia/Jakarta')
     ->description('Prune Sanctum tokens older than 7 days')
+    ->emailOutputOnFailure(env('ADMIN_EMAIL', 'admin@quickkasir.com'))
     ->appendOutputTo(storage_path('logs/prune-tokens.log'));
 
 // 6. Clear stale Redis cache tags daily at 4:00 AM
@@ -100,6 +103,7 @@ Schedule::command('system:health-check')
     ->everyThirtyMinutes()
     ->description('Check system health (DB, Redis, Storage, Disk)')
     ->withoutOverlapping()
+    ->emailOutputOnFailure(env('ADMIN_EMAIL', 'admin@quickkasir.com'))
     ->appendOutputTo(storage_path('logs/health-check.log'));
 
 // 9. Detailed health check with verbose output daily at 8:00 AM
@@ -107,6 +111,7 @@ Schedule::command('system:health-check --detailed')
     ->dailyAt('08:00')
     ->timezone('Asia/Jakarta')
     ->description('Daily detailed system health check')
+    ->emailOutputOnFailure(env('ADMIN_EMAIL', 'admin@quickkasir.com'))
     ->appendOutputTo(storage_path('logs/daily-health.log'));
 
 // ============================================================
@@ -128,6 +133,11 @@ Schedule::call(function () {
         \Log::info('Database optimization completed', ['tables' => $tables]);
     } catch (\Exception $e) {
         \Log::error('Database optimization failed', ['error' => $e->getMessage()]);
+        // Send email notification on failure
+        \Mail::raw("Database optimization failed: {$e->getMessage()}", function ($message) {
+            $message->to(env('ADMIN_EMAIL', 'admin@quickkasir.com'))
+                    ->subject('[QuickKasir] Database Optimization Failed');
+        });
     }
 })
     ->weekly()

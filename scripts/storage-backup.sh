@@ -89,6 +89,25 @@ echo ""
 echo "📊 Total backup size: ${TOTAL_SIZE}"
 echo ""
 
+# Send email notification (if configured)
+if [ -f "${PROJECT_DIR}/app/backend/.env" ]; then
+    ADMIN_EMAIL=$(grep "^ADMIN_EMAIL=" "${PROJECT_DIR}/app/backend/.env" | cut -d '=' -f2 | tr -d '"' | tr -d "'" | xargs)
+    if [ ! -z "$ADMIN_EMAIL" ]; then
+        cd "${PROJECT_DIR}/app/backend"
+        /usr/bin/php8.3 artisan tinker --execute="
+        use Illuminate\Support\Facades\Mail;
+        try {
+            Mail::raw('Storage backup completed successfully!\n\nFile: ${BACKUP_FILE}\nSize: ${FILE_SIZE}\nTime: $(date)', function (\$message) {
+                \$message->to('${ADMIN_EMAIL}')
+                        ->subject('[QuickKasir] Storage Backup Completed - ' . date('Y-m-d H:i:s'));
+            });
+        } catch (\Exception \$e) {
+            // Silently fail - don't break backup process
+        }
+        " > /dev/null 2>&1 || true
+    fi
+fi
+
 echo -e "${GREEN}==============================="
 echo "✅ Storage Backup Completed!"
 echo "===============================${NC}"

@@ -54,11 +54,24 @@ if [ "${MEMORY_USAGE}" -gt "${THRESHOLD}" ]; then
     # Log warning
     echo "$(date): WARNING - Memory usage is ${MEMORY_USAGE}%" >> "${LOG_FILE}"
     
-    # TODO: Send email notification (if configured)
-    # mail -s "Memory Warning" admin@quickkasir.com << EOF
-    # Memory usage on server is ${MEMORY_USAGE}%
-    # Available: ${AVAILABLE_MEM}
-    # EOF
+    # Send email notification (if configured)
+    if [ -f "${PROJECT_DIR}/app/backend/.env" ]; then
+        ADMIN_EMAIL=$(grep "^ADMIN_EMAIL=" "${PROJECT_DIR}/app/backend/.env" | cut -d '=' -f2 | tr -d '"' | tr -d "'" | xargs)
+        if [ ! -z "$ADMIN_EMAIL" ]; then
+            cd "${PROJECT_DIR}/app/backend"
+            /usr/bin/php8.3 artisan tinker --execute="
+            use Illuminate\Support\Facades\Mail;
+            try {
+                Mail::raw('⚠️  WARNING: Memory usage is ${MEMORY_USAGE}% (threshold: ${THRESHOLD}%)\n\nTotal: ${TOTAL_MEM}\nUsed: ${USED_MEM} (${MEMORY_USAGE}%)\nAvailable: ${AVAILABLE_MEM}\n\nPlease check memory-consuming processes!', function (\$message) {
+                    \$message->to('${ADMIN_EMAIL}')
+                            ->subject('[QuickKasir] ⚠️  Memory Warning - ${MEMORY_USAGE}%');
+                });
+            } catch (\Exception \$e) {
+                // Silently fail
+            }
+            " > /dev/null 2>&1 || true
+        fi
+    fi
     
     exit 1
 else
