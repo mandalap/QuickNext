@@ -99,8 +99,9 @@ ${PHP_PATH} artisan config:clear > /dev/null 2>&1
 ${PHP_PATH} artisan tinker --execute="
 use Illuminate\Support\Facades\Mail;
 try {
-    Mail::raw('This is a test email from QuickKasir POS System.\\n\\nIf you receive this email, your email configuration is working correctly!\\n\\nTimestamp: ' . now(), function (\$message) use (\$argv) {
-        \$message->to('${TEST_EMAIL}')
+    \$testEmail = '${TEST_EMAIL}';
+    Mail::raw('This is a test email from QuickKasir POS System.\\n\\nIf you receive this email, your email configuration is working correctly!\\n\\nTimestamp: ' . now(), function (\$message) use (\$testEmail) {
+        \$message->to(\$testEmail)
                 ->subject('[QuickKasir] Test Email - ' . now()->format('Y-m-d H:i:s'));
     });
     echo '✅ Email sent successfully!';
