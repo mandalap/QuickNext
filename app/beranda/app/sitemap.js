@@ -5,6 +5,9 @@ const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://quickkasir.com';
 export default function sitemap() {
   const currentDate = new Date().toISOString();
 
+  // ✅ FIX: Sitemap should only include actual pages, not anchor hashes
+  // Anchor hashes (#features, #pricing) are sections on the same page, not separate URLs
+  // Google and Bing prefer clean sitemaps with only distinct page URLs
   return [
     {
       url: baseUrl,
@@ -12,36 +15,8 @@ export default function sitemap() {
       changeFrequency: 'weekly',
       priority: 1.0,
     },
-    {
-      url: `${baseUrl}#features`,
-      lastModified: currentDate,
-      changeFrequency: 'monthly',
-      priority: 0.8,
-    },
-    {
-      url: `${baseUrl}#pricing`,
-      lastModified: currentDate,
-      changeFrequency: 'weekly', // Pricing plans update frequently
-      priority: 0.9,
-    },
-    {
-      url: `${baseUrl}#demo`,
-      lastModified: currentDate,
-      changeFrequency: 'monthly',
-      priority: 0.7,
-    },
-    {
-      url: `${baseUrl}#testimonials`,
-      lastModified: currentDate,
-      changeFrequency: 'monthly',
-      priority: 0.6,
-    },
-    {
-      url: `${baseUrl}#faq`,
-      lastModified: currentDate,
-      changeFrequency: 'monthly',
-      priority: 0.6,
-    },
+    // Removed anchor hash URLs (#features, #pricing, etc.) as they're not separate pages
+    // These are sections on the main page and will be indexed as part of the main URL
   ];
 }
 
