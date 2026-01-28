@@ -66,6 +66,14 @@ if [ -z "$MAIL_MAILER" ] || [ "$MAIL_MAILER" = "log" ]; then
     echo ""
 fi
 
+# Check if SMTP is blocked
+if [ "$MAIL_MAILER" = "smtp" ]; then
+    echo -e "${YELLOW}⚠️  Using SMTP mailer${NC}"
+    echo "   If you get connection timeout errors, your VPS might be blocking SMTP."
+    echo "   Consider using Mailgun or other alternatives. See: SMTP_ALTERNATIVES.md"
+    echo ""
+fi
+
 # Get test email address
 if [ -z "$ADMIN_EMAIL" ]; then
     echo -e "${YELLOW}⚠️  ADMIN_EMAIL not set in .env${NC}"
