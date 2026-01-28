@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Notifications\VerifyEmailNotification;
+use App\Notifications\WelcomeEmailNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -154,6 +155,19 @@ class AuthController extends Controller
             'phone' => $user->phone,
             'phone_formatted' => $this->formatPhoneNumber($user->phone),
         ]);
+
+        // ✅ Kirim welcome email
+        try {
+            $user->notify(new WelcomeEmailNotification());
+            Log::info('Welcome email sent', ['user_id' => $user->id, 'email' => $user->email]);
+        } catch (\Exception $e) {
+            Log::error('Failed to send welcome email', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'error' => $e->getMessage()
+            ]);
+            // Tidak gagalkan registrasi jika email gagal dikirim
+        }
 
         // ✅ Kirim email verifikasi
         try {

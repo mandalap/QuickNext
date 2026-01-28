@@ -38,23 +38,44 @@ class WelcomeEmailNotification extends Notification
      */
     public function toMail(object $notifiable): MailMessage
     {
-        $message = (new MailMessage)
-            ->subject('Selamat Datang - Akun Anda Telah Dibuat')
-            ->greeting('Halo ' . $notifiable->name . '!')
-            ->line('Akun Anda telah dibuat di sistem POS kami.')
-            ->line('**Detail Akun Anda:**')
-            ->line('- Email: ' . $notifiable->email)
-            ->line('- Role: ' . ($this->role ? ucfirst($this->role) : ucfirst($notifiable->role ?? 'User')));
-
+        $frontendUrl = env('FRONTEND_URL', 'http://localhost:3000');
+        
+        // Jika ada password, berarti user dibuat oleh admin (manual)
         if ($this->password) {
-            $message->line('- Password: ' . $this->password)
-                    ->line('**⚠️ Penting:** Silakan ubah password Anda setelah login pertama kali.');
-        }
-
-        $message->line('Silakan login menggunakan kredensial di atas untuk mulai menggunakan sistem.')
-                ->action('Login ke Sistem', url('/login'))
+            $message = (new MailMessage)
+                ->subject('Selamat Datang - Akun Anda Telah Dibuat')
+                ->greeting('Halo ' . $notifiable->name . '!')
+                ->line('Akun Anda telah dibuat di sistem POS kami.')
+                ->line('**Detail Akun Anda:**')
+                ->line('- Email: ' . $notifiable->email)
+                ->line('- Role: ' . ($this->role ? ucfirst($this->role) : ucfirst($notifiable->role ?? 'User')))
+                ->line('- Password: ' . $this->password)
+                ->line('**⚠️ Penting:** Silakan ubah password Anda setelah login pertama kali.')
+                ->line('Silakan login menggunakan kredensial di atas untuk mulai menggunakan sistem.')
+                ->action('Login ke Sistem', $frontendUrl . '/login')
                 ->line('Jika Anda memiliki pertanyaan, silakan hubungi administrator sistem.')
-                ->salutation('Salam, Tim POS System');
+                ->salutation('Salam, Tim QuickKasir POS');
+        } else {
+            // Welcome email untuk user yang registrasi sendiri
+            $message = (new MailMessage)
+                ->subject('Selamat Datang di QuickKasir POS!')
+                ->greeting('Halo ' . $notifiable->name . '!')
+                ->line('Terima kasih telah bergabung dengan QuickKasir POS System!')
+                ->line('Akun Anda telah berhasil dibuat. Sekarang Anda dapat:')
+                ->line('✅ Mengelola bisnis Anda dengan mudah')
+                ->line('✅ Mencatat transaksi penjualan')
+                ->line('✅ Mengelola produk dan stok')
+                ->line('✅ Melihat laporan penjualan')
+                ->line('✅ Dan banyak fitur lainnya!')
+                ->line('')
+                ->line('**Langkah selanjutnya:**')
+                ->line('1. Verifikasi email Anda dengan mengklik link yang telah dikirim')
+                ->line('2. Lengkapi profil bisnis Anda')
+                ->line('3. Mulai menggunakan sistem POS')
+                ->action('Masuk ke Dashboard', $frontendUrl . '/dashboard')
+                ->line('Jika Anda memiliki pertanyaan atau butuh bantuan, jangan ragu untuk menghubungi tim support kami.')
+                ->salutation('Salam, Tim QuickKasir POS');
+        }
 
         return $message;
     }
