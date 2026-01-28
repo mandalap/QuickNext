@@ -55,7 +55,7 @@ class VerifyEmailNotification extends Notification
             ->action('Verifikasi Email', $verificationUrl)
             ->line('Link verifikasi akan kadaluarsa dalam 7 hari.')
             ->line('Jika Anda tidak membuat akun ini, abaikan email ini.')
-            ->salutation('Salam, Tim POS System');
+            ->salutation('Salam, Tim QuickKasir POS');
     }
 
     /**
