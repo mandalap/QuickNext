@@ -1,6 +1,7 @@
 import { Download, Printer } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { orderService } from '../../services/order.service';
+import printService from '../../services/printService';
 import '../../styles/thermal-printer.css';
 import { Button } from '../ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
@@ -11,12 +12,23 @@ const PrintReceiptModal = ({ open, onClose, orderId }) => {
   const [receiptData, setReceiptData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [printServerAvailable, setPrintServerAvailable] = useState(false);
+  const [checkingPrintServer, setCheckingPrintServer] = useState(false);
 
   useEffect(() => {
     if (open && orderId) {
       loadReceiptData();
+      checkPrintServer();
     }
   }, [open, orderId]);
+
+  // Check print server availability
+  const checkPrintServer = async () => {
+    setCheckingPrintServer(true);
+    const available = await printService.checkAvailability();
+    setPrintServerAvailable(available);
+    setCheckingPrintServer(false);
+  };
 
   const loadReceiptData = async () => {
     try {
@@ -42,7 +54,50 @@ const PrintReceiptModal = ({ open, onClose, orderId }) => {
     }
   };
 
-  const handlePrint = () => {
+  // Handle print with thermal printer (silent) or browser (with dialog)
+  const handlePrint = async () => {
+    try {
+      // Try thermal printer first if available
+      if (printServerAvailable && receiptData) {
+        toast({
+          title: 'Mencetak...',
+          description: 'Mengirim ke thermal printer',
+        });
+
+        const result = await printService.printReceipt(receiptData);
+
+        if (result.success) {
+          toast({
+            title: '✅ Berhasil dicetak!',
+            description: 'Struk telah dicetak ke thermal printer',
+          });
+          return;
+        } else {
+          // Fallback to browser print
+          console.warn('Thermal print failed, falling back to browser print:', result.error);
+          toast({
+            title: 'Thermal printer gagal',
+            description: 'Menggunakan print browser sebagai alternatif',
+            variant: 'warning',
+          });
+        }
+      }
+
+      // Fallback: Browser print
+      handleBrowserPrint();
+
+    } catch (error) {
+      console.error('Print error:', error);
+      toast({
+        title: 'Gagal mencetak',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // Browser print (original method with dialog)
+  const handleBrowserPrint = () => {
     // Focus on receipt content only
     const printWindow = window.open('', '_blank');
     const receiptElement = document.querySelector('.receipt-content');
@@ -824,7 +879,26 @@ const PrintReceiptModal = ({ open, onClose, orderId }) => {
       <DialogContent className='max-w-2xl max-h-[90vh] overflow-y-auto print:max-w-none print:max-h-none print:overflow-visible print:p-0'>
         <DialogHeader className='print:hidden'>
           <div className='flex items-center justify-between'>
-            <DialogTitle>Print Struk</DialogTitle>
+            <div>
+              <DialogTitle>Print Struk</DialogTitle>
+              {/* Print Server Status Indicator */}
+              {checkingPrintServer ? (
+                <div className='flex items-center gap-2 mt-1 text-xs text-gray-500'>
+                  <div className='animate-spin h-3 w-3 border-2 border-gray-400 border-t-transparent rounded-full'></div>
+                  Checking printer...
+                </div>
+              ) : printServerAvailable ? (
+                <div className='flex items-center gap-2 mt-1 text-xs text-green-600'>
+                  <Wifi className='w-3 h-3' />
+                  Thermal printer connected
+                </div>
+              ) : (
+                <div className='flex items-center gap-2 mt-1 text-xs text-gray-500'>
+                  <WifiOff className='w-3 h-3' />
+                  Using browser print
+                </div>
+              )}
+            </div>
             <div className='flex gap-2 ml-8'>
               <Button
                 variant='outline'
@@ -840,9 +914,10 @@ const PrintReceiptModal = ({ open, onClose, orderId }) => {
                 size='sm'
                 onClick={handlePrint}
                 disabled={loading || !receiptData}
+                className={printServerAvailable ? 'bg-green-50 hover:bg-green-100' : ''}
               >
                 <Printer className='w-4 h-4 mr-2' />
-                Print
+                {printServerAvailable ? 'Print (Thermal)' : 'Print (Browser)'}
               </Button>
             </div>
           </div>

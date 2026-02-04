@@ -1,0 +1,37 @@
+{
+  "name": "quickkasir-print-server",
+  "version": "1.0.0",
+  "description": "Local print server for QuickKasir POS - Silent thermal printer integration",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "install-service": "node install-service.js",
+    "uninstall-service": "node uninstall-service.js",
+    "test": "node test-print.js"
+  },
+  "keywords": [
+    "pos",
+    "thermal-printer",
+    "escpos",
+    "print-server"
+  ],
+  "author": "QuickKasir",
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "escpos": "^3.0.0-alpha.6",
+    "escpos-usb": "^3.0.0-alpha.4",
+    "escpos-network": "^3.0.0-alpha.1",
+    "node-windows": "^1.0.0-beta.8",
+    "dotenv": "^16.3.1",
+    "winston": "^3.11.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
